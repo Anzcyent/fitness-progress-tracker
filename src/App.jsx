@@ -463,9 +463,15 @@ function ExerciseCard({
     if (canSave) setCollapsed(true);
   };
 
-  if (collapsed) {
-    return (
-      <section className="rounded-3xl border border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60 p-2.5 shadow-xl shadow-black/30">
+  return (
+    <section
+      className={`rounded-3xl border p-3 shadow-xl shadow-black/30 transition-colors ${
+        nameMissing
+          ? "border-lime-400/30 bg-gradient-to-b from-lime-400/[0.08] to-zinc-900/60"
+          : "border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60"
+      }`}
+    >
+      {collapsed ? (
         <button
           type="button"
           onClick={() => setCollapsed(false)}
@@ -498,88 +504,34 @@ function ExerciseCard({
             <path d="m6 9 6 6 6-6" />
           </svg>
         </button>
-      </section>
-    );
-  }
-
-  return (
-    <section
-      className={`rounded-3xl border p-3 shadow-xl shadow-black/30 transition-colors ${
-        nameMissing
-          ? "border-lime-400/30 bg-gradient-to-b from-lime-400/[0.08] to-zinc-900/60"
-          : "border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60"
-      }`}
-    >
-      <div className="flex items-center gap-2.5">
-        <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${active.chip}`}
-        >
-          {emoji}
-        </span>
-        <input
-          type="text"
-          placeholder="Egzersiz adı (örn. Göğüs Fly)"
-          enterKeyHint="next"
-          value={exercise.name}
-          onChange={(e) => onUpdateName(exercise.id, e.target.value)}
-          aria-invalid={nameMissing}
-          className="h-10 min-w-0 flex-1 rounded-xl border bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2"
-          style={{ borderColor: attempted && nameMissing ? "#fbbf24" : undefined }}
-        />
-        <button
-          type="button"
-          onClick={() => setCollapsed(true)}
-          aria-label="Kartı daralt"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200 active:scale-95"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      ) : (
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${active.chip}`}
           >
-            <path d="m18 15-6-6-6 6" />
-          </svg>
-        </button>
-      </div>
-
-      {attempted && nameMissing && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0"
+            {emoji}
+          </span>
+          <input
+            type="text"
+            placeholder="Egzersiz adı (örn. Göğüs Fly)"
+            enterKeyHint="next"
+            value={exercise.name}
+            onChange={(e) => onUpdateName(exercise.id, e.target.value)}
+            aria-invalid={nameMissing}
+            className="h-10 min-w-0 flex-1 rounded-xl border bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2"
+            style={{
+              borderColor: attempted && nameMissing ? "#fbbf24" : undefined,
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            aria-label="Kartı daralt"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200 active:scale-95"
           >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          Egzersiz adı gerekli — kartı kaydedip daraltmak için bir isim gir.
-        </p>
-      )}
-
-      <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
-        <div
-          className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
-        >
-          <span>SET</span>
-          <span>Geçen Hafta</span>
-          <span className="text-center">KG</span>
-          <span className="text-center">TKR</span>
-          <span title="Dinlenme (sn)" className="flex justify-center text-amber-300/90">
             <svg
-              width="13"
-              height="13"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -587,188 +539,262 @@ function ExerciseCard({
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M5 22h14" />
-              <path d="M5 2h14" />
-              <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-              <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+              <path d="m18 15-6-6-6 6" />
             </svg>
-          </span>
+          </button>
         </div>
-
-        {exercise.sets.map((set, i) => {
-          const weightMissing = attempted && set.weight.trim() === "";
-          const repsMissing = attempted && !(Number(set.reps) > 0);
-          const restMissing =
-            attempted && String(set.rest ?? "").trim() === "";
-          const invalidCls =
-            "border-red-400/70 focus:border-red-400 focus:ring-red-400/30";
-          return (
-            <div
-              key={i}
-              className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
-            >
-              <span className="text-sm font-bold tabular-nums text-zinc-400">
-                {i + 1}
-              </span>
-
-              <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
-                {fmtPrev(prevRows[i])}
-              </span>
-
-              <input
-                type="text"
-                inputMode="decimal"
-                enterKeyHint="next"
-                placeholder="0"
-                value={set.weight}
-                onChange={(e) =>
-                  onUpdateSetWeight(exercise.id, i, e.target.value)
-                }
-                aria-label={`Set ${i + 1} ağırlık`}
-                aria-invalid={weightMissing}
-                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                  weightMissing
-                    ? invalidCls
-                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
-                }`}
-              />
-
-              <input
-                type="text"
-                inputMode="numeric"
-                enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
-                placeholder="–"
-                value={set.reps || ""}
-                onChange={(e) => onUpdateSetRep(exercise.id, i, e.target.value)}
-                aria-label={`Set ${i + 1} tekrar`}
-                aria-invalid={repsMissing}
-                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                  repsMissing
-                    ? invalidCls
-                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
-                }`}
-              />
-
-              <input
-                type="text"
-                inputMode="numeric"
-                enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
-                placeholder="60"
-                value={set.rest || ""}
-                onChange={(e) => onUpdateSetRest(exercise.id, i, e.target.value)}
-                aria-label={`Set ${i + 1} dinlenme saniye`}
-                aria-invalid={restMissing}
-                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                  restMissing
-                    ? invalidCls
-                    : "border-amber-400/20 focus:border-amber-400 focus:ring-amber-400/40"
-                }`}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {attempted && emptyIndexes.length > 0 && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          Boş alanlar var — tüm setlerde ağırlık, tekrar ve dinlenme süresini
-          doldur.
-        </p>
       )}
 
-      <div className="mt-2.5 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onAddSet(exercise.id)}
-          disabled={atMaxSets}
-          className="h-9 flex-1 rounded-xl border border-dashed border-zinc-700 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:bg-transparent disabled:hover:text-zinc-300"
-        >
-          + Set Ekle
-        </button>
-        {exercise.sets.length > 1 && (
-          <button
-            type="button"
-            onClick={() => onRemoveSet(exercise.id)}
-            aria-label="Son seti sil"
-            className="h-9 w-9 shrink-0 rounded-xl border border-zinc-700 text-lg text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={`transition-opacity duration-300 ease-in-out ${
+              collapsed ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
           >
-            −
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="h-9 shrink-0 rounded-xl bg-lime-400 px-4 text-xs font-bold text-zinc-950 shadow-lg shadow-lime-400/20 transition hover:bg-lime-300 active:scale-[0.98]"
-        >
-          Kaydet
-        </button>
-      </div>
+            {attempted && nameMissing && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                Egzersiz adı gerekli — kartı kaydedip daraltmak için bir isim
+                gir.
+              </p>
+            )}
 
-      {confirmDelete ? (
-        <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-red-400/30 bg-red-400/5 px-3 py-2">
-          <span className="text-[11px] font-semibold text-red-300">
-            Bu egzersiz silinsin mi?
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(false)}
-              className="h-8 shrink-0 rounded-lg bg-zinc-800 px-3 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-700 active:scale-95"
-            >
-              Vazgeç
-            </button>
-            <button
-              type="button"
-              onClick={() => onRemove(exercise.id)}
-              className="h-8 shrink-0 rounded-lg bg-red-400 px-3 text-xs font-bold text-zinc-950 transition hover:bg-red-300 active:scale-95"
-            >
-              Sil
-            </button>
+            <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
+              <div
+                className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
+              >
+                <span>SET</span>
+                <span>Geçen Hafta</span>
+                <span className="text-center">KG</span>
+                <span className="text-center">TKR</span>
+                <span
+                  title="Dinlenme (sn)"
+                  className="flex justify-center text-amber-300/90"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 22h14" />
+                    <path d="M5 2h14" />
+                    <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                    <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+                  </svg>
+                </span>
+              </div>
+
+              {exercise.sets.map((set, i) => {
+                const weightMissing = attempted && set.weight.trim() === "";
+                const repsMissing = attempted && !(Number(set.reps) > 0);
+                const restMissing =
+                  attempted && String(set.rest ?? "").trim() === "";
+                const invalidCls =
+                  "border-red-400/70 focus:border-red-400 focus:ring-red-400/30";
+                return (
+                  <div
+                    key={i}
+                    className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
+                  >
+                    <span className="text-sm font-bold tabular-nums text-zinc-400">
+                      {i + 1}
+                    </span>
+
+                    <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
+                      {fmtPrev(prevRows[i])}
+                    </span>
+
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      enterKeyHint="next"
+                      placeholder="0"
+                      value={set.weight}
+                      onChange={(e) =>
+                        onUpdateSetWeight(exercise.id, i, e.target.value)
+                      }
+                      aria-label={`Set ${i + 1} ağırlık`}
+                      aria-invalid={weightMissing}
+                      className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                        weightMissing
+                          ? invalidCls
+                          : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
+                      }`}
+                    />
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      enterKeyHint={
+                        i === exercise.sets.length - 1 ? "done" : "next"
+                      }
+                      placeholder="–"
+                      value={set.reps || ""}
+                      onChange={(e) =>
+                        onUpdateSetRep(exercise.id, i, e.target.value)
+                      }
+                      aria-label={`Set ${i + 1} tekrar`}
+                      aria-invalid={repsMissing}
+                      className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                        repsMissing
+                          ? invalidCls
+                          : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
+                      }`}
+                    />
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      enterKeyHint={
+                        i === exercise.sets.length - 1 ? "done" : "next"
+                      }
+                      placeholder="60"
+                      value={set.rest || ""}
+                      onChange={(e) =>
+                        onUpdateSetRest(exercise.id, i, e.target.value)
+                      }
+                      aria-label={`Set ${i + 1} dinlenme saniye`}
+                      aria-invalid={restMissing}
+                      className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                        restMissing
+                          ? invalidCls
+                          : "border-amber-400/20 focus:border-amber-400 focus:ring-amber-400/40"
+                      }`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {attempted && emptyIndexes.length > 0 && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                Boş alanlar var — tüm setlerde ağırlık, tekrar ve dinlenme
+                süresini doldur.
+              </p>
+            )}
+
+            <div className="mt-2.5 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onAddSet(exercise.id)}
+                disabled={atMaxSets}
+                className="h-9 flex-1 rounded-xl border border-dashed border-zinc-700 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:bg-transparent disabled:hover:text-zinc-300"
+              >
+                + Set Ekle
+              </button>
+              {exercise.sets.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveSet(exercise.id)}
+                  aria-label="Son seti sil"
+                  className="h-9 w-9 shrink-0 rounded-xl border border-zinc-700 text-lg text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+                >
+                  −
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                className="h-9 shrink-0 rounded-xl bg-lime-400 px-4 text-xs font-bold text-zinc-950 shadow-lg shadow-lime-400/20 transition hover:bg-lime-300 active:scale-[0.98]"
+              >
+                Kaydet
+              </button>
+            </div>
+
+            {confirmDelete ? (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-red-400/30 bg-red-400/5 px-3 py-2">
+                <span className="text-[11px] font-semibold text-red-300">
+                  Bu egzersiz silinsin mi?
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    className="h-8 shrink-0 rounded-lg bg-zinc-800 px-3 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-700 active:scale-95"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(exercise.id)}
+                    className="h-8 shrink-0 rounded-lg bg-red-400 px-3 text-xs font-bold text-zinc-950 transition hover:bg-red-300 active:scale-95"
+                  >
+                    Sil
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="text-[10px] text-zinc-600">
+                  {atMaxSets
+                    ? `En fazla ${MAX_SETS} set eklenebilir.`
+                    : "\u00A0"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  aria-label="Egzersizi sil"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      ) : (
-        <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-[10px] text-zinc-600">
-            {atMaxSets ? `En fazla ${MAX_SETS} set eklenebilir.` : "\u00A0"}
-          </span>
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            aria-label="Egzersizi sil"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-            </svg>
-          </button>
-        </div>
-      )}
+      </div>
     </section>
   );
 }
