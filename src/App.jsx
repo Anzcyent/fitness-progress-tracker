@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 const STORAGE_KEY = "workout-data-v1";
 const DEFAULT_REST = 120;
 const ROW_GRID =
-  "grid grid-cols-[1.5rem_1fr_3rem_3rem_2.5rem] items-center gap-1";
+  "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem] items-center gap-1";
 
 const DAY_FULL = [
   "Pazartesi",
@@ -93,7 +93,7 @@ const normalizeData = (raw) => {
 const createExercise = () => ({
   id: nextId++,
   name: "",
-  sets: [{ weight: "", reps: 0, completed: false, rest: DEFAULT_REST }],
+  sets: [{ weight: "", reps: 0, completed: false, rest: "" }],
 });
 
 const toISO = (date) => {
@@ -134,9 +134,6 @@ const loadData = () => {
 
 const fmtDayNum = (iso) => new Date(iso + "T00:00:00").getDate();
 
-const fmtTimer = (s) =>
-  `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
 const fmtPrev = (row) => {
   if (!row) return "—";
   const w = String(row.weight ?? "").trim();
@@ -149,24 +146,10 @@ function App() {
   const [data, setData] = useState(loadData);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(getTodayIndex());
-  const [timer, setTimer] = useState(null);
-  const timerRunning = timer !== null;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data]);
-
-  useEffect(() => {
-    if (!timerRunning) return;
-    const id = setInterval(() => {
-      setTimer((t) => {
-        if (!t) return null;
-        const remaining = t.remaining - 1;
-        return remaining <= 0 ? null : { ...t, remaining };
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [timerRunning]);
 
   const todayIndex = getTodayIndex();
   const weekDates = getWeekDates(weekOffset);
@@ -233,22 +216,12 @@ function App() {
     }));
   };
 
-  const startTimer = (name, seconds) =>
-    setTimer({ name: name.trim() || "Set", remaining: seconds });
-
-  const toggleSet = (id, setIndex) => {
-    const ex = exercises.find((e) => e.id === id);
-    if (!ex) return;
-    const wasDone = ex.sets[setIndex]?.completed;
-    patch(id, (e) => ({
-      ...e,
-      sets: e.sets.map((s, i) =>
-        i === setIndex ? { ...s, completed: !s.completed } : s
-      ),
+  const updateSetRest = (id, setIndex, value) => {
+    const cleaned = value.replace(/\D/g, "").slice(0, 4);
+    patch(id, (ex) => ({
+      ...ex,
+      sets: ex.sets.map((s, i) => (i === setIndex ? { ...s, rest: cleaned } : s)),
     }));
-    if (!wasDone) {
-      startTimer(ex.name || "Set", ex.sets[setIndex]?.rest ?? DEFAULT_REST);
-    }
   };
 
   const addSet = (id) =>
@@ -256,7 +229,7 @@ function App() {
       ...ex,
       sets: [
         ...ex.sets,
-        { weight: "", reps: 0, completed: false, rest: DEFAULT_REST },
+        { weight: "", reps: 0, completed: false, rest: "" },
       ],
     }));
 
@@ -422,7 +395,7 @@ function App() {
                   onUpdateName={updateName}
                   onUpdateSetWeight={updateSetWeight}
                   onUpdateSetRep={updateSetRep}
-                  onToggleSet={toggleSet}
+                  onUpdateSetRest={updateSetRest}
                   onAddSet={addSet}
                   onRemoveSet={removeSet}
                   onRemove={removeExercise}
@@ -438,51 +411,10 @@ function App() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />{" "}
-            Dinlenme sayacı
+            Dinlenme (sn)
           </span>
         </div>
-
-        {timer && <div className="h-24" />}
       </main>
-
-      {timer && (
-        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-          <div className="mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl border border-lime-400/30 bg-zinc-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime-400 opacity-60" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime-400" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                  Dinlenme · {timer.name}
-                </p>
-                <p className="text-lg font-extrabold tabular-nums text-lime-300">
-                  {fmtTimer(timer.remaining)}
-                </p>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setTimer((t) => (t ? { ...t, remaining: t.remaining + 30 } : t))
-                }
-                className="h-9 rounded-xl border border-zinc-700 px-3 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:text-lime-300 active:scale-95"
-              >
-                +30 sn
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimer(null)}
-                className="h-9 rounded-xl bg-zinc-800 px-3 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-700 hover:text-zinc-200 active:scale-95"
-              >
-                Atla
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -494,7 +426,7 @@ function ExerciseCard({
   onUpdateName,
   onUpdateSetWeight,
   onUpdateSetRep,
-  onToggleSet,
+  onUpdateSetRest,
   onAddSet,
   onRemoveSet,
   onRemove,
@@ -560,91 +492,72 @@ function ExerciseCard({
           <span>Geçen Hafta</span>
           <span className="text-center">KG</span>
           <span className="text-center">TKR</span>
-          <span className="text-center">OK</span>
+          <span title="Dinlenme (sn)" className="flex justify-center text-amber-300/90">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 22h14" />
+              <path d="M5 2h14" />
+              <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+              <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+            </svg>
+          </span>
         </div>
 
-        {exercise.sets.map((set, i) => {
-          const done = set.completed;
-          return (
-            <div
-              key={i}
-              className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors ${
-                done ? "bg-lime-400/10" : "bg-transparent"
-              }`}
-            >
-              <span
-                className={`text-sm font-bold tabular-nums ${
-                  done ? "text-zinc-500" : "text-zinc-400"
-                }`}
-              >
-                {i + 1}
-              </span>
+        {exercise.sets.map((set, i) => (
+          <div
+            key={i}
+            className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
+          >
+            <span className="text-sm font-bold tabular-nums text-zinc-400">
+              {i + 1}
+            </span>
 
-              <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
-                {fmtPrev(prevRows[i])}
-              </span>
+            <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
+              {fmtPrev(prevRows[i])}
+            </span>
 
-              <input
-                type="text"
-                inputMode="decimal"
-                enterKeyHint="next"
-                disabled={done}
-                placeholder="0"
-                value={set.weight}
-                onChange={(e) =>
-                  onUpdateSetWeight(exercise.id, i, e.target.value)
-                }
-                aria-label={`Set ${i + 1} ağırlık`}
-                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                  done
-                    ? "border-zinc-800 opacity-40"
-                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
-                }`}
-              />
+            <input
+              type="text"
+              inputMode="decimal"
+              enterKeyHint="next"
+              placeholder="0"
+              value={set.weight}
+              onChange={(e) => onUpdateSetWeight(exercise.id, i, e.target.value)}
+              aria-label={`Set ${i + 1} ağırlık`}
+              className="h-9 w-full min-w-0 rounded-lg border border-zinc-700 bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
 
-              <input
-                type="text"
-                inputMode="numeric"
-                enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
-                disabled={done}
-                placeholder="–"
-                value={set.reps || ""}
-                onChange={(e) => onUpdateSetRep(exercise.id, i, e.target.value)}
-                aria-label={`Set ${i + 1} tekrar`}
-                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                  done
-                    ? "border-zinc-800 opacity-40"
-                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
-                }`}
-              />
+            <input
+              type="text"
+              inputMode="numeric"
+              enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
+              placeholder="–"
+              value={set.reps || ""}
+              onChange={(e) => onUpdateSetRep(exercise.id, i, e.target.value)}
+              aria-label={`Set ${i + 1} tekrar`}
+              className="h-9 w-full min-w-0 rounded-lg border border-zinc-700 bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
 
-              <button
-                type="button"
-                onClick={() => onToggleSet(exercise.id, i)}
-                aria-label={done ? "Seti geri al" : "Seti tamamla"}
-                aria-pressed={done}
-                className={`flex h-9 w-9 items-center justify-center rounded-lg border transition active:scale-90 ${
-                  done
-                    ? "border-lime-400 bg-lime-400 text-zinc-950 shadow-lg shadow-lime-400/25"
-                    : "border-zinc-600 text-zinc-400 hover:border-lime-400 hover:text-lime-300"
-                }`}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </button>
-            </div>
-          );
-        })}
+            <input
+              type="text"
+              inputMode="numeric"
+              enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
+              placeholder="60"
+              value={set.rest || ""}
+              onChange={(e) => onUpdateSetRest(exercise.id, i, e.target.value)}
+              aria-label={`Set ${i + 1} dinlenme saniye`}
+              className="h-9 w-full min-w-0 rounded-lg border border-amber-400/20 bg-zinc-800/70 px-1 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+            />
+          </div>
+        ))}
       </div>
 
       <div className="mt-2.5 flex items-center gap-2">
