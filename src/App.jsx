@@ -1,0 +1,504 @@
+import { Fragment, useEffect, useState } from "react";
+
+const STORAGE_KEY = "workout-data-v1";
+
+const DAY_FULL = [
+  "Pazartesi",
+  "Salı",
+  "Çarşamba",
+  "Perşembe",
+  "Cuma",
+  "Cumartesi",
+  "Pazar",
+];
+const DAY_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+
+const ACCENTS = [
+  { chip: "bg-lime-400/10 text-lime-300 ring-lime-400/25", text: "text-lime-300", focus: "focus:border-lime-400 focus:ring-lime-400/40" },
+  { chip: "bg-sky-400/10 text-sky-300 ring-sky-400/25", text: "text-sky-300", focus: "focus:border-sky-400 focus:ring-sky-400/40" },
+  { chip: "bg-amber-400/10 text-amber-300 ring-amber-400/25", text: "text-amber-300", focus: "focus:border-amber-400 focus:ring-amber-400/40" },
+  { chip: "bg-rose-400/10 text-rose-300 ring-rose-400/25", text: "text-rose-300", focus: "focus:border-rose-400 focus:ring-rose-400/40" },
+  { chip: "bg-violet-400/10 text-violet-300 ring-violet-400/25", text: "text-violet-300", focus: "focus:border-violet-400 focus:ring-violet-400/40" },
+  { chip: "bg-cyan-400/10 text-cyan-300 ring-cyan-400/25", text: "text-cyan-300", focus: "focus:border-cyan-400 focus:ring-cyan-400/40" },
+];
+
+const getEmoji = (name) => {
+  const n = name.toLowerCase();
+  if (n.includes("göğüs") || n.includes("gogus")) return "🏋️";
+  if (n.includes("sırt") || n.includes("sirt")) return "🧗";
+  if (n.includes("omuz")) return "🤸";
+  if (n.includes("biceps") || n.includes("triceps") || n.includes("kol")) return "💪";
+  if (n.includes("leg") || n.includes("bacak") || n.includes("curl")) return "🦵";
+  return "🏋️";
+};
+
+let nextId = 1;
+
+const createExercise = () => ({
+  id: nextId++,
+  name: "",
+  weight: "",
+  sets: [0, 0, 0],
+  rests: ["", ""],
+});
+
+const toISO = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const addDays = (date, n) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+};
+
+const getMonday = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
+  return addDays(d, diff);
+};
+
+const getWeekDates = (weekOffset) => {
+  const monday = addDays(getMonday(new Date()), -weekOffset * 7);
+  return Array.from({ length: 7 }, (_, i) => toISO(addDays(monday, i)));
+};
+
+const getTodayIndex = () => (new Date().getDay() + 6) % 7;
+
+const loadData = () => {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+};
+
+const fmtDayNum = (iso) => new Date(iso + "T00:00:00").getDate();
+
+function App() {
+  const [data, setData] = useState(loadData);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(getTodayIndex());
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [data]);
+
+  const todayIndex = getTodayIndex();
+  const weekDates = getWeekDates(weekOffset);
+  const currentKey = weekDates[selectedDay];
+  const exercises = data[currentKey] || [];
+  const isToday = weekOffset === 0 && selectedDay === todayIndex;
+
+  const selectedDate = new Date(currentKey + "T00:00:00");
+  const dayLabel = DAY_FULL[selectedDay];
+  const fullDate = selectedDate.toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+
+  const prevKey = toISO(addDays(selectedDate, -7));
+  const hasPrevWeek = (data[prevKey] || []).length > 0;
+
+  const weekRange = `${new Date(
+    weekDates[0] + "T00:00:00"
+  ).toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+  })} – ${new Date(weekDates[6] + "T00:00:00").toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+  })}`;
+
+  const setExercises = (list) =>
+    setData((prev) => ({ ...prev, [currentKey]: list }));
+
+  const addExercise = () => setExercises((prev) => [...prev, createExercise()]);
+
+  const removeExercise = (id) =>
+    setExercises((prev) => prev.filter((ex) => ex.id !== id));
+
+  const patch = (id, updater) =>
+    setExercises((prev) =>
+      prev.map((ex) => (ex.id === id ? updater(ex) : ex))
+    );
+
+  const updateName = (id, value) => patch(id, (ex) => ({ ...ex, name: value }));
+
+  const updateWeight = (id, value) =>
+    patch(id, (ex) => ({
+      ...ex,
+      weight: value.replace(/[^0-9.,]/g, "").slice(0, 5),
+    }));
+
+  const updateRep = (id, setIndex, value) => {
+    const cleaned = value.replace(/\D/g, "").slice(0, 3);
+    const num = cleaned === "" ? 0 : parseInt(cleaned, 10);
+    patch(id, (ex) => ({
+      ...ex,
+      sets: ex.sets.map((s, i) => (i === setIndex ? num : s)),
+    }));
+  };
+
+  const updateRest = (id, restIndex, value) => {
+    const cleaned = value.replace(/[^0-9:]/g, "").slice(0, 5);
+    patch(id, (ex) => ({
+      ...ex,
+      rests: ex.rests.map((r, i) => (i === restIndex ? cleaned : r)),
+    }));
+  };
+
+  const addSet = (id) =>
+    patch(id, (ex) => ({
+      ...ex,
+      sets: [...ex.sets, 0],
+      rests: [...ex.rests, ""],
+    }));
+
+  const removeSet = (id) =>
+    patch(id, (ex) => ({
+      ...ex,
+      sets: ex.sets.length > 1 ? ex.sets.slice(0, -1) : ex.sets,
+      rests: ex.sets.length > 1 ? ex.rests.slice(0, -1) : ex.rests,
+    }));
+
+  const copyFromLastWeek = () => {
+    const src = data[prevKey] || [];
+    setExercises(src.map((ex) => ({ ...ex, id: nextId++ })));
+  };
+
+  return (
+    <div className="min-h-dvh bg-zinc-950 font-sans text-zinc-100 antialiased">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 overflow-hidden"
+      >
+        <div className="absolute -top-28 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-lime-400/10 blur-3xl" />
+        <div className="absolute top-32 -right-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-cyan-500/5 blur-3xl" />
+      </div>
+
+      <main className="relative mx-auto w-full max-w-lg px-4 pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        <header
+          className="sticky top-0 z-10 -mx-4 border-b border-zinc-800/60 bg-zinc-950/85 px-4 pb-4 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-lime-400 to-emerald-500 text-sm shadow-lg shadow-lime-500/20">
+              💪
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-zinc-400">
+              Antrenman Takibi
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <h1 className="flex items-center gap-2 bg-gradient-to-r from-lime-200 via-emerald-300 to-emerald-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+              {dayLabel}
+              {isToday && (
+                <span className="rounded-full bg-lime-400/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-lime-300 ring-1 ring-lime-400/40">
+                  Bugün
+                </span>
+              )}
+            </h1>
+            <div className="pb-1 text-right">
+              <p className="text-xs font-medium text-zinc-300">{fullDate}</p>
+              <p className="mt-0.5 text-[11px] text-zinc-500">
+                {exercises.length} egzersiz • {totalSets} set
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <div className="mt-4 rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-3 shadow-xl shadow-black/20 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-1 rounded-xl bg-zinc-800/70 p-1">
+              <button
+                type="button"
+                onClick={() => setWeekOffset(1)}
+                className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+                  weekOffset === 1
+                    ? "bg-lime-400 text-zinc-950 shadow-lg shadow-lime-400/25"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Geçen Hafta
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekOffset(0)}
+                className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+                  weekOffset === 0
+                    ? "bg-lime-400 text-zinc-950 shadow-lg shadow-lime-400/25"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Bu Hafta
+              </button>
+            </div>
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-500">
+              {weekRange}
+            </span>
+          </div>
+
+          <div className="mt-2 grid grid-cols-7 gap-1">
+            {weekDates.map((iso, i) => {
+              const active = i === selectedDay;
+              const todayTab = weekOffset === 0 && i === todayIndex;
+              const has = (data[iso] || []).length > 0;
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => setSelectedDay(i)}
+                  className={`flex min-h-12 flex-col items-center justify-center rounded-xl transition ${
+                    active
+                      ? "bg-lime-400/15 text-lime-300 ring-1 ring-lime-400/40"
+                      : "text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-200"
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">{DAY_SHORT[i]}</span>
+                  <span className="text-[10px] font-semibold tabular-nums text-zinc-500">
+                    {fmtDayNum(iso)}
+                  </span>
+                  <span
+                    className={`mt-1 h-1 w-1 rounded-full ${
+                      has
+                        ? "bg-amber-400"
+                        : todayTab
+                          ? "bg-lime-400/70"
+                          : "bg-zinc-700"
+                    }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={addExercise}
+          className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-700 text-base font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99]"
+        >
+          <span className="text-2xl leading-none">+</span> Yeni Egzersiz Ekle
+        </button>
+
+        {exercises.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-center">
+            <p className="text-sm text-zinc-400">Bu güne ait kayıt yok.</p>
+            {hasPrevWeek ? (
+              <button
+                type="button"
+                onClick={copyFromLastWeek}
+                className="mt-3 rounded-xl border border-lime-400/30 bg-lime-400/10 px-4 py-2.5 text-sm font-semibold text-lime-300 transition hover:bg-lime-400/20 active:scale-[0.98]"
+              >
+                Geçen hafta {DAY_FULL[selectedDay]} kaydını kopyala
+              </button>
+            ) : (
+              <p className="mt-2 text-xs text-zinc-600">
+                "Yeni Egzersiz Ekle" ile başla.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3">
+            {exercises.map((exercise, index) => (
+              <ExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                accent={ACCENTS[index % ACCENTS.length]}
+                onUpdateName={updateName}
+                onUpdateWeight={updateWeight}
+                onUpdateRep={updateRep}
+                onUpdateRest={updateRest}
+                onAddSet={addSet}
+                onRemoveSet={removeSet}
+                onRemove={removeExercise}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center justify-center gap-4 text-[11px] text-zinc-600">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-lime-400/70" /> Set
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />{" "}
+            Dinlenme (sn veya dk:sn)
+          </span>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ExerciseCard({
+  exercise,
+  accent,
+  onUpdateName,
+  onUpdateWeight,
+  onUpdateRep,
+  onUpdateRest,
+  onAddSet,
+  onRemoveSet,
+  onRemove,
+}) {
+  const isNew = exercise.name === "" && exercise.weight === "";
+  const active = isNew
+    ? {
+        chip: "bg-lime-400/10 text-lime-300 ring-lime-400/25",
+        text: "text-lime-300",
+        focus: "focus:border-lime-400 focus:ring-lime-400/40",
+      }
+    : accent;
+  const emoji = getEmoji(exercise.name);
+
+  return (
+    <section
+      className={`rounded-3xl border p-4 shadow-xl shadow-black/30 transition-colors ${
+        isNew
+          ? "border-lime-400/30 bg-gradient-to-b from-lime-400/[0.08] to-zinc-900/60"
+          : "border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ring-1 ${active.chip}`}
+        >
+          {emoji}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Egzersiz
+          </p>
+          <input
+            type="text"
+            placeholder="Egzersiz adı (örn. Göğüs Fly)"
+            enterKeyHint="next"
+            value={exercise.name}
+            onChange={(e) => onUpdateName(exercise.id, e.target.value)}
+            className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-800/70 px-3 text-base font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => onRemove(exercise.id)}
+          aria-label="Egzersizi sil"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Ağırlık
+          </p>
+          <input
+            type="text"
+            inputMode="decimal"
+            enterKeyHint="done"
+            placeholder="0"
+            value={exercise.weight}
+            onChange={(e) => onUpdateWeight(exercise.id, e.target.value)}
+            className={`h-11 w-20 rounded-xl border border-zinc-700 bg-zinc-800/70 px-3 text-right text-base font-bold tabular-nums ${active.text} placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${active.focus}`}
+          />
+          <span className="text-sm font-semibold text-zinc-500">kg</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onAddSet(exercise.id)}
+            aria-label="Set ekle"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-700 text-lg text-zinc-300 transition hover:border-lime-400 hover:text-lime-300 active:scale-95"
+          >
+            +
+          </button>
+          {exercise.sets.length > 1 && (
+            <button
+              type="button"
+              onClick={() => onRemoveSet(exercise.id)}
+              aria-label="Set sil"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-700 text-lg text-zinc-300 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+            >
+              −
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-2xl bg-black/20 p-3 ring-1 ring-zinc-800/70">
+        <div className="flex flex-wrap items-end gap-2">
+          {exercise.sets.map((rep, i) => (
+            <Fragment key={i}>
+              <div className="flex min-w-[3.75rem] flex-1 flex-col items-center justify-end gap-1.5">
+                <span className="rounded-full bg-zinc-800 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  Set {i + 1}
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  enterKeyHint={
+                    i === exercise.sets.length - 1 ? "done" : "next"
+                  }
+                  placeholder="–"
+                  value={rep || ""}
+                  onChange={(e) => onUpdateRep(exercise.id, i, e.target.value)}
+                  className="h-12 w-14 rounded-xl border border-zinc-700 bg-zinc-800/80 text-center text-lg font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
+                />
+              </div>
+
+              {i < exercise.sets.length - 1 && (
+                <div className="flex min-w-[5rem] flex-[1.25] flex-col items-center justify-end gap-1.5">
+                  <span className="rounded-full bg-amber-400/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300/90">
+                    Dinlenme
+                  </span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      enterKeyHint="next"
+                      placeholder="60"
+                      value={exercise.rests[i]}
+                      onChange={(e) =>
+                        onUpdateRest(exercise.id, i, e.target.value)
+                      }
+                      className="h-12 w-20 rounded-xl border border-amber-400/20 bg-zinc-800/80 pr-6 text-center text-base font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-zinc-500">
+                      sn
+                    </span>
+                  </div>
+                </div>
+              )}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default App;
