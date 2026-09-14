@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "workout-data-v1";
 const DEFAULT_REST = 120;
+const MAX_SETS = 6;
 const ROW_GRID =
   "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem] items-center gap-1";
 
@@ -90,10 +91,12 @@ const normalizeData = (raw) => {
   return out;
 };
 
+const createSet = () => ({ weight: "", reps: 0, completed: false, rest: "" });
+
 const createExercise = () => ({
   id: nextId++,
   name: "",
-  sets: [{ weight: "", reps: 0, completed: false, rest: "" }],
+  sets: [createSet()],
 });
 
 const toISO = (date) => {
@@ -225,13 +228,13 @@ function App() {
   };
 
   const addSet = (id) =>
-    patch(id, (ex) => ({
-      ...ex,
-      sets: [
-        ...ex.sets,
-        { weight: "", reps: 0, completed: false, rest: "" },
-      ],
-    }));
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.id !== id) return ex;
+        if (ex.sets.length >= MAX_SETS) return ex;
+        return { ...ex, sets: [...ex.sets, createSet()] };
+      })
+    );
 
   const removeSet = (id) =>
     patch(id, (ex) =>
@@ -431,18 +434,77 @@ function ExerciseCard({
   onRemoveSet,
   onRemove,
 }) {
-  const isNew = exercise.name.trim() === "";
-  const active = isNew
+  const [collapsed, setCollapsed] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+
+  const nameMissing = exercise.name.trim() === "";
+  const emptyIndexes = exercise.sets
+    .map((s, i) =>
+      s.weight.trim() === "" ||
+      !(Number(s.reps) > 0) ||
+      String(s.rest ?? "").trim() === ""
+        ? i
+        : -1
+    )
+    .filter((i) => i !== -1);
+  const canSave = !nameMissing && emptyIndexes.length === 0;
+  const atMaxSets = exercise.sets.length >= MAX_SETS;
+
+  const active = nameMissing
     ? {
         chip: "bg-lime-400/10 text-lime-300 ring-lime-400/25",
       }
     : accent;
   const emoji = getEmoji(exercise.name);
 
+  const handleSave = () => {
+    setAttempted(true);
+    if (canSave) setCollapsed(true);
+  };
+
+  if (collapsed) {
+    return (
+      <section className="rounded-3xl border border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60 p-2.5 shadow-xl shadow-black/30">
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition hover:bg-zinc-800/50"
+        >
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${active.chip}`}
+          >
+            {emoji}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-zinc-100">
+              {exercise.name}
+            </span>
+            <span className="block text-[10px] font-medium text-zinc-500">
+              {exercise.sets.length} set
+            </span>
+          </span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-zinc-500"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section
       className={`rounded-3xl border p-3 shadow-xl shadow-black/30 transition-colors ${
-        isNew
+        nameMissing
           ? "border-lime-400/30 bg-gradient-to-b from-lime-400/[0.08] to-zinc-900/60"
           : "border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60"
       }`}
@@ -459,7 +521,9 @@ function ExerciseCard({
           enterKeyHint="next"
           value={exercise.name}
           onChange={(e) => onUpdateName(exercise.id, e.target.value)}
-          className="h-10 min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
+          aria-invalid={nameMissing}
+          className="h-10 min-w-0 flex-1 rounded-xl border bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2"
+          style={{ borderColor: nameMissing ? "#fbbf24" : undefined }}
         />
         <button
           type="button"
@@ -483,6 +547,27 @@ function ExerciseCard({
           </svg>
         </button>
       </div>
+
+      {nameMissing && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Egzersiz adı gerekli — kartı kaydedip daraltmak için bir isim gir.
+        </p>
+      )}
 
       <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
         <div
@@ -511,60 +596,108 @@ function ExerciseCard({
           </span>
         </div>
 
-        {exercise.sets.map((set, i) => (
-          <div
-            key={i}
-            className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
-          >
-            <span className="text-sm font-bold tabular-nums text-zinc-400">
-              {i + 1}
-            </span>
+        {exercise.sets.map((set, i) => {
+          const weightMissing = attempted && set.weight.trim() === "";
+          const repsMissing = attempted && !(Number(set.reps) > 0);
+          const restMissing =
+            attempted && String(set.rest ?? "").trim() === "";
+          const invalidCls =
+            "border-red-400/70 focus:border-red-400 focus:ring-red-400/30";
+          return (
+            <div
+              key={i}
+              className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
+            >
+              <span className="text-sm font-bold tabular-nums text-zinc-400">
+                {i + 1}
+              </span>
 
-            <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
-              {fmtPrev(prevRows[i])}
-            </span>
+              <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
+                {fmtPrev(prevRows[i])}
+              </span>
 
-            <input
-              type="text"
-              inputMode="decimal"
-              enterKeyHint="next"
-              placeholder="0"
-              value={set.weight}
-              onChange={(e) => onUpdateSetWeight(exercise.id, i, e.target.value)}
-              aria-label={`Set ${i + 1} ağırlık`}
-              className="h-9 w-full min-w-0 rounded-lg border border-zinc-700 bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
+              <input
+                type="text"
+                inputMode="decimal"
+                enterKeyHint="next"
+                placeholder="0"
+                value={set.weight}
+                onChange={(e) =>
+                  onUpdateSetWeight(exercise.id, i, e.target.value)
+                }
+                aria-label={`Set ${i + 1} ağırlık`}
+                aria-invalid={weightMissing}
+                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                  weightMissing
+                    ? invalidCls
+                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
+                }`}
+              />
 
-            <input
-              type="text"
-              inputMode="numeric"
-              enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
-              placeholder="–"
-              value={set.reps || ""}
-              onChange={(e) => onUpdateSetRep(exercise.id, i, e.target.value)}
-              aria-label={`Set ${i + 1} tekrar`}
-              className="h-9 w-full min-w-0 rounded-lg border border-zinc-700 bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
+              <input
+                type="text"
+                inputMode="numeric"
+                enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
+                placeholder="–"
+                value={set.reps || ""}
+                onChange={(e) => onUpdateSetRep(exercise.id, i, e.target.value)}
+                aria-label={`Set ${i + 1} tekrar`}
+                aria-invalid={repsMissing}
+                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                  repsMissing
+                    ? invalidCls
+                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
+                }`}
+              />
 
-            <input
-              type="text"
-              inputMode="numeric"
-              enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
-              placeholder="60"
-              value={set.rest || ""}
-              onChange={(e) => onUpdateSetRest(exercise.id, i, e.target.value)}
-              aria-label={`Set ${i + 1} dinlenme saniye`}
-              className="h-9 w-full min-w-0 rounded-lg border border-amber-400/20 bg-zinc-800/70 px-1 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
-            />
-          </div>
-        ))}
+              <input
+                type="text"
+                inputMode="numeric"
+                enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
+                placeholder="60"
+                value={set.rest || ""}
+                onChange={(e) => onUpdateSetRest(exercise.id, i, e.target.value)}
+                aria-label={`Set ${i + 1} dinlenme saniye`}
+                aria-invalid={restMissing}
+                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                  restMissing
+                    ? invalidCls
+                    : "border-amber-400/20 focus:border-amber-400 focus:ring-amber-400/40"
+                }`}
+              />
+            </div>
+          );
+        })}
       </div>
+
+      {attempted && emptyIndexes.length > 0 && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Boş alanlar var — tüm setlerde ağırlık, tekrar ve dinlenme süresini
+          doldur.
+        </p>
+      )}
 
       <div className="mt-2.5 flex items-center gap-2">
         <button
           type="button"
           onClick={() => onAddSet(exercise.id)}
-          className="h-9 flex-1 rounded-xl border border-dashed border-zinc-700 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99]"
+          disabled={atMaxSets}
+          className="h-9 flex-1 rounded-xl border border-dashed border-zinc-700 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:bg-transparent disabled:hover:text-zinc-300"
         >
           + Set Ekle
         </button>
@@ -578,7 +711,20 @@ function ExerciseCard({
             −
           </button>
         )}
+        <button
+          type="button"
+          onClick={handleSave}
+          className="h-9 shrink-0 rounded-xl bg-lime-400 px-4 text-xs font-bold text-zinc-950 shadow-lg shadow-lime-400/20 transition hover:bg-lime-300 active:scale-[0.98]"
+        >
+          Kaydet
+        </button>
       </div>
+
+      {atMaxSets && (
+        <p className="mt-2 text-right text-[10px] text-zinc-600">
+          En fazla {MAX_SETS} set eklenebilir.
+        </p>
+      )}
     </section>
   );
 }
