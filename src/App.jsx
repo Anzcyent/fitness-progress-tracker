@@ -116,8 +116,14 @@ function App() {
     month: "short",
   })}`;
 
-  const setExercises = (list) =>
-    setData((prev) => ({ ...prev, [currentKey]: list }));
+  const setExercises = (listOrFn) =>
+    setData((prev) => ({
+      ...prev,
+      [currentKey]:
+        typeof listOrFn === "function"
+          ? listOrFn(prev[currentKey] || [])
+          : listOrFn,
+    }));
 
   const addExercise = () => setExercises((prev) => [...prev, createExercise()]);
 
