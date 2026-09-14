@@ -149,6 +149,7 @@ function App() {
   const [data, setData] = useState(loadData);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(getTodayIndex());
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -196,6 +197,12 @@ function App() {
 
   const removeExercise = (id) =>
     setExercises((prev) => prev.filter((ex) => ex.id !== id));
+
+  const notifySave = (name) =>
+    setToast({
+      id: Date.now(),
+      message: `${name} isimli hareket başarıyla kaydedildi.`,
+    });
 
   const patch = (id, updater) =>
     setExercises((prev) => prev.map((ex) => (ex.id === id ? updater(ex) : ex)));
@@ -249,6 +256,13 @@ function App() {
 
   return (
     <div className="min-h-dvh bg-zinc-950 font-sans text-zinc-100 antialiased">
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          onDone={() => setToast(null)}
+        />
+      )}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 overflow-hidden"
@@ -402,6 +416,7 @@ function App() {
                   onAddSet={addSet}
                   onRemoveSet={removeSet}
                   onRemove={removeExercise}
+                  onSave={notifySave}
                 />
               );
             })}
@@ -433,6 +448,7 @@ function ExerciseCard({
   onAddSet,
   onRemoveSet,
   onRemove,
+  onSave,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [attempted, setAttempted] = useState(false);
@@ -460,7 +476,10 @@ function ExerciseCard({
 
   const handleSave = () => {
     setAttempted(true);
-    if (canSave) setCollapsed(true);
+    if (canSave) {
+      setCollapsed(true);
+      onSave(exercise.name);
+    }
   };
 
   return (
@@ -796,6 +815,51 @@ function ExerciseCard({
         </div>
       </div>
     </section>
+  );
+}
+
+function Toast({ message, onDone }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setVisible(true));
+    const hideTimer = setTimeout(() => setVisible(false), 2600);
+    const doneTimer = setTimeout(onDone, 3050);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(hideTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [onDone]);
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 px-4">
+      <div
+        className={`mx-auto flex w-fit max-w-full items-center gap-2.5 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-2xl shadow-emerald-500/30 ring-1 ring-emerald-300/50 transition-all duration-300 ease-out ${
+          visible
+            ? "translate-y-0 scale-100 opacity-100"
+            : "translate-y-8 scale-95 opacity-0"
+        }`}
+        role="status"
+        aria-live="polite"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0"
+        >
+          <circle cx="12" cy="12" r="10" className="fill-emerald-600/30" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+        <span className="min-w-0 truncate">{message}</span>
+      </div>
+    </div>
   );
 }
 
