@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "workout-data-v1";
+const DEFAULT_REST = 120;
+const ROW_GRID =
+  "grid grid-cols-[1.5rem_1fr_3rem_3rem_2.5rem] items-center gap-1";
 
 const DAY_FULL = [
   "Pazartesi",
@@ -34,12 +37,63 @@ const getEmoji = (name) => {
 
 let nextId = 1;
 
+const parseRest = (v) => {
+  if (v == null || v === "") return null;
+  const s = String(v);
+  if (s.includes(":")) {
+    const [m, sec] = s.split(":").map(Number);
+    if (!Number.isNaN(m) && !Number.isNaN(sec)) return m * 60 + sec;
+    return null;
+  }
+  const n = parseInt(s, 10);
+  return Number.isNaN(n) ? null : n;
+};
+
+const normalizeExercise = (ex) => {
+  if (!ex || typeof ex !== "object" || ex.id === undefined) return null;
+  const already = Array.isArray(ex.sets) && ex.sets.some((s) => s && typeof s === "object");
+  if (already) {
+    return {
+      ...ex,
+      weight: undefined,
+      rests: undefined,
+      sets: ex.sets.map((s) => ({
+        weight: "",
+        reps: 0,
+        completed: false,
+        rest: DEFAULT_REST,
+        ...s,
+      })),
+    };
+  }
+  const oldSets = Array.isArray(ex.sets) ? ex.sets : [];
+  const oldRests = Array.isArray(ex.rests) ? ex.rests : [];
+  return {
+    id: ex.id,
+    name: ex.name ?? "",
+    rest: parseRest(oldRests[0]) ?? DEFAULT_REST,
+    sets: oldSets.map((reps, i) => ({
+      weight: typeof ex.weight === "string" ? ex.weight : ex.weight != null ? String(ex.weight) : "",
+      reps: typeof reps === "number" ? reps : 0,
+      completed: false,
+      rest: parseRest(oldRests[i]) ?? DEFAULT_REST,
+    })),
+  };
+};
+
+const normalizeData = (raw) => {
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (Array.isArray(v)) out[k] = v.map(normalizeExercise).filter(Boolean);
+    else out[k] = v;
+  }
+  return out;
+};
+
 const createExercise = () => ({
   id: nextId++,
   name: "",
-  weight: "",
-  sets: [0, 0, 0],
-  rests: ["", ""],
+  sets: [{ weight: "", reps: 0, completed: false, rest: DEFAULT_REST }],
 });
 
 const toISO = (date) => {
@@ -71,7 +125,8 @@ const getTodayIndex = () => (new Date().getDay() + 6) % 7;
 
 const loadData = () => {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return raw && typeof raw === "object" ? normalizeData(raw) : {};
   } catch {
     return {};
   }
@@ -79,14 +134,39 @@ const loadData = () => {
 
 const fmtDayNum = (iso) => new Date(iso + "T00:00:00").getDate();
 
+const fmtTimer = (s) =>
+  `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+const fmtPrev = (row) => {
+  if (!row) return "—";
+  const w = String(row.weight ?? "").trim();
+  const r = row.reps ?? 0;
+  if (!w && !r) return "—";
+  return `${w}${w ? " kg" : ""} × ${r}`;
+};
+
 function App() {
   const [data, setData] = useState(loadData);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(getTodayIndex());
+  const [timer, setTimer] = useState(null);
+  const timerRunning = timer !== null;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data]);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+    const id = setInterval(() => {
+      setTimer((t) => {
+        if (!t) return null;
+        const remaining = t.remaining - 1;
+        return remaining <= 0 ? null : { ...t, remaining };
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning]);
 
   const todayIndex = getTodayIndex();
   const weekDates = getWeekDates(weekOffset);
@@ -104,7 +184,8 @@ function App() {
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
 
   const prevKey = toISO(addDays(selectedDate, -7));
-  const hasPrevWeek = (data[prevKey] || []).length > 0;
+  const prevExercises = data[prevKey] || [];
+  const hasPrevWeek = prevExercises.length > 0;
 
   const weekRange = `${new Date(
     weekDates[0] + "T00:00:00"
@@ -131,52 +212,63 @@ function App() {
     setExercises((prev) => prev.filter((ex) => ex.id !== id));
 
   const patch = (id, updater) =>
-    setExercises((prev) =>
-      prev.map((ex) => (ex.id === id ? updater(ex) : ex))
-    );
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? updater(ex) : ex)));
 
   const updateName = (id, value) => patch(id, (ex) => ({ ...ex, name: value }));
 
-  const updateWeight = (id, value) =>
+  const updateSetWeight = (id, setIndex, value) => {
+    const cleaned = value.replace(/[^0-9.,]/g, "").slice(0, 5);
     patch(id, (ex) => ({
       ...ex,
-      weight: value.replace(/[^0-9.,]/g, "").slice(0, 5),
+      sets: ex.sets.map((s, i) => (i === setIndex ? { ...s, weight: cleaned } : s)),
     }));
+  };
 
-  const updateRep = (id, setIndex, value) => {
+  const updateSetRep = (id, setIndex, value) => {
     const cleaned = value.replace(/\D/g, "").slice(0, 3);
     const num = cleaned === "" ? 0 : parseInt(cleaned, 10);
     patch(id, (ex) => ({
       ...ex,
-      sets: ex.sets.map((s, i) => (i === setIndex ? num : s)),
+      sets: ex.sets.map((s, i) => (i === setIndex ? { ...s, reps: num } : s)),
     }));
   };
 
-  const updateRest = (id, restIndex, value) => {
-    const cleaned = value.replace(/[^0-9:]/g, "").slice(0, 5);
-    patch(id, (ex) => ({
-      ...ex,
-      rests: ex.rests.map((r, i) => (i === restIndex ? cleaned : r)),
+  const startTimer = (name, seconds) =>
+    setTimer({ name: name.trim() || "Set", remaining: seconds });
+
+  const toggleSet = (id, setIndex) => {
+    const ex = exercises.find((e) => e.id === id);
+    if (!ex) return;
+    const wasDone = ex.sets[setIndex]?.completed;
+    patch(id, (e) => ({
+      ...e,
+      sets: e.sets.map((s, i) =>
+        i === setIndex ? { ...s, completed: !s.completed } : s
+      ),
     }));
+    if (!wasDone) {
+      startTimer(ex.name || "Set", ex.sets[setIndex]?.rest ?? DEFAULT_REST);
+    }
   };
 
   const addSet = (id) =>
     patch(id, (ex) => ({
       ...ex,
-      sets: [...ex.sets, 0],
-      rests: [...ex.rests, ""],
+      sets: [
+        ...ex.sets,
+        { weight: "", reps: 0, completed: false, rest: DEFAULT_REST },
+      ],
     }));
 
   const removeSet = (id) =>
-    patch(id, (ex) => ({
-      ...ex,
-      sets: ex.sets.length > 1 ? ex.sets.slice(0, -1) : ex.sets,
-      rests: ex.sets.length > 1 ? ex.rests.slice(0, -1) : ex.rests,
-    }));
+    patch(id, (ex) =>
+      ex.sets.length > 1
+        ? { ...ex, sets: ex.sets.slice(0, -1) }
+        : ex
+    );
 
   const copyFromLastWeek = () => {
-    const src = data[prevKey] || [];
-    setExercises(src.map((ex) => ({ ...ex, id: nextId++ })));
+    setExercises(prevExercises.map((ex) => ({ ...ex, id: nextId++ })));
   };
 
   return (
@@ -191,9 +283,7 @@ function App() {
       </div>
 
       <main className="relative mx-auto w-full max-w-lg px-4 pb-[calc(3rem+env(safe-area-inset-bottom))]">
-        <header
-          className="sticky top-0 z-10 -mx-4 border-b border-zinc-800/60 bg-zinc-950/85 px-4 pb-4 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl"
-        >
+        <header className="sticky top-0 z-10 -mx-4 border-b border-zinc-800/60 bg-zinc-950/85 px-4 pb-4 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-lime-400 to-emerald-500 text-sm shadow-lg shadow-lime-500/20">
               💪
@@ -314,20 +404,31 @@ function App() {
           </div>
         ) : (
           <div className="mt-4 flex flex-col gap-3">
-            {exercises.map((exercise, index) => (
-              <ExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                accent={ACCENTS[index % ACCENTS.length]}
-                onUpdateName={updateName}
-                onUpdateWeight={updateWeight}
-                onUpdateRep={updateRep}
-                onUpdateRest={updateRest}
-                onAddSet={addSet}
-                onRemoveSet={removeSet}
-                onRemove={removeExercise}
-              />
-            ))}
+            {exercises.map((exercise, index) => {
+              const matched =
+                exercise.name.trim() !== ""
+                  ? prevExercises.find(
+                      (p) =>
+                        p.name.trim().toLowerCase() ===
+                        exercise.name.trim().toLowerCase()
+                    )
+                  : undefined;
+              return (
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  accent={ACCENTS[index % ACCENTS.length]}
+                  prevRows={matched ? matched.sets : []}
+                  onUpdateName={updateName}
+                  onUpdateSetWeight={updateSetWeight}
+                  onUpdateSetRep={updateSetRep}
+                  onToggleSet={toggleSet}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onRemove={removeExercise}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -337,10 +438,51 @@ function App() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />{" "}
-            Dinlenme (sn veya dk:sn)
+            Dinlenme sayacı
           </span>
         </div>
+
+        {timer && <div className="h-24" />}
       </main>
+
+      {timer && (
+        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl border border-lime-400/30 bg-zinc-900/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime-400" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                  Dinlenme · {timer.name}
+                </p>
+                <p className="text-lg font-extrabold tabular-nums text-lime-300">
+                  {fmtTimer(timer.remaining)}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setTimer((t) => (t ? { ...t, remaining: t.remaining + 30 } : t))
+                }
+                className="h-9 rounded-xl border border-zinc-700 px-3 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:text-lime-300 active:scale-95"
+              >
+                +30 sn
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimer(null)}
+                className="h-9 rounded-xl bg-zinc-800 px-3 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-700 hover:text-zinc-200 active:scale-95"
+              >
+                Atla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -348,60 +490,54 @@ function App() {
 function ExerciseCard({
   exercise,
   accent,
+  prevRows,
   onUpdateName,
-  onUpdateWeight,
-  onUpdateRep,
-  onUpdateRest,
+  onUpdateSetWeight,
+  onUpdateSetRep,
+  onToggleSet,
   onAddSet,
   onRemoveSet,
   onRemove,
 }) {
-  const isNew = exercise.name === "" && exercise.weight === "";
+  const isNew = exercise.name.trim() === "";
   const active = isNew
     ? {
         chip: "bg-lime-400/10 text-lime-300 ring-lime-400/25",
-        text: "text-lime-300",
-        focus: "focus:border-lime-400 focus:ring-lime-400/40",
       }
     : accent;
   const emoji = getEmoji(exercise.name);
 
   return (
     <section
-      className={`rounded-3xl border p-4 shadow-xl shadow-black/30 transition-colors ${
+      className={`rounded-3xl border p-3 shadow-xl shadow-black/30 transition-colors ${
         isNew
           ? "border-lime-400/30 bg-gradient-to-b from-lime-400/[0.08] to-zinc-900/60"
           : "border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60"
       }`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ring-1 ${active.chip}`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${active.chip}`}
         >
           {emoji}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            Egzersiz
-          </p>
-          <input
-            type="text"
-            placeholder="Egzersiz adı (örn. Göğüs Fly)"
-            enterKeyHint="next"
-            value={exercise.name}
-            onChange={(e) => onUpdateName(exercise.id, e.target.value)}
-            className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-800/70 px-3 text-base font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Egzersiz adı (örn. Göğüs Fly)"
+          enterKeyHint="next"
+          value={exercise.name}
+          onChange={(e) => onUpdateName(exercise.id, e.target.value)}
+          className="h-10 min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
+        />
         <button
           type="button"
           onClick={() => onRemove(exercise.id)}
           aria-label="Egzersizi sil"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
         >
           <svg
-            width="18"
-            height="18"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -416,92 +552,119 @@ function ExerciseCard({
         </button>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            Ağırlık
-          </p>
-          <input
-            type="text"
-            inputMode="decimal"
-            enterKeyHint="done"
-            placeholder="0"
-            value={exercise.weight}
-            onChange={(e) => onUpdateWeight(exercise.id, e.target.value)}
-            className={`h-11 w-20 rounded-xl border border-zinc-700 bg-zinc-800/70 px-3 text-right text-base font-bold tabular-nums ${active.text} placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${active.focus}`}
-          />
-          <span className="text-sm font-semibold text-zinc-500">kg</span>
+      <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
+        <div
+          className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
+        >
+          <span>SET</span>
+          <span>Geçen Hafta</span>
+          <span className="text-center">KG</span>
+          <span className="text-center">TKR</span>
+          <span className="text-center">OK</span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => onAddSet(exercise.id)}
-            aria-label="Set ekle"
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-700 text-lg text-zinc-300 transition hover:border-lime-400 hover:text-lime-300 active:scale-95"
-          >
-            +
-          </button>
-          {exercise.sets.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onRemoveSet(exercise.id)}
-              aria-label="Set sil"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-700 text-lg text-zinc-300 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+        {exercise.sets.map((set, i) => {
+          const done = set.completed;
+          return (
+            <div
+              key={i}
+              className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors ${
+                done ? "bg-lime-400/10" : "bg-transparent"
+              }`}
             >
-              −
-            </button>
-          )}
-        </div>
+              <span
+                className={`text-sm font-bold tabular-nums ${
+                  done ? "text-zinc-500" : "text-zinc-400"
+                }`}
+              >
+                {i + 1}
+              </span>
+
+              <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
+                {fmtPrev(prevRows[i])}
+              </span>
+
+              <input
+                type="text"
+                inputMode="decimal"
+                enterKeyHint="next"
+                disabled={done}
+                placeholder="0"
+                value={set.weight}
+                onChange={(e) =>
+                  onUpdateSetWeight(exercise.id, i, e.target.value)
+                }
+                aria-label={`Set ${i + 1} ağırlık`}
+                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                  done
+                    ? "border-zinc-800 opacity-40"
+                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
+                }`}
+              />
+
+              <input
+                type="text"
+                inputMode="numeric"
+                enterKeyHint={i === exercise.sets.length - 1 ? "done" : "next"}
+                disabled={done}
+                placeholder="–"
+                value={set.reps || ""}
+                onChange={(e) => onUpdateSetRep(exercise.id, i, e.target.value)}
+                aria-label={`Set ${i + 1} tekrar`}
+                className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
+                  done
+                    ? "border-zinc-800 opacity-40"
+                    : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
+                }`}
+              />
+
+              <button
+                type="button"
+                onClick={() => onToggleSet(exercise.id, i)}
+                aria-label={done ? "Seti geri al" : "Seti tamamla"}
+                aria-pressed={done}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg border transition active:scale-90 ${
+                  done
+                    ? "border-lime-400 bg-lime-400 text-zinc-950 shadow-lg shadow-lime-400/25"
+                    : "border-zinc-600 text-zinc-400 hover:border-lime-400 hover:text-lime-300"
+                }`}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </button>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="mt-3 rounded-2xl bg-black/20 p-3 ring-1 ring-zinc-800/70">
-        <div className="flex items-end gap-1 overflow-x-auto pb-0.5">
-          {exercise.sets.map((rep, i) => (
-            <div key={i} className="flex shrink-0 items-end gap-1">
-              <div className="flex flex-col items-center justify-end gap-1.5">
-                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Set {i + 1}
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  enterKeyHint={
-                    i === exercise.sets.length - 1 ? "done" : "next"
-                  }
-                  placeholder="–"
-                  value={rep || ""}
-                  onChange={(e) => onUpdateRep(exercise.id, i, e.target.value)}
-                  className="h-12 w-14 rounded-xl border border-zinc-700 bg-zinc-800/80 text-center text-lg font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/40"
-                />
-              </div>
-
-              {i < exercise.sets.length - 1 && (
-                <div className="flex flex-col items-center justify-end gap-1.5">
-                  <span className="max-w-full truncate rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300/90">
-                    Dinlenme
-                  </span>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      enterKeyHint="next"
-                      placeholder="60"
-                      value={exercise.rests[i]}
-                      onChange={(e) =>
-                        onUpdateRest(exercise.id, i, e.target.value)
-                      }
-                      className="h-12 w-14 rounded-xl border border-amber-400/20 bg-zinc-800/80 pr-6 text-center text-base font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-zinc-500">
-                      sn
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="mt-2.5 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onAddSet(exercise.id)}
+          className="h-9 flex-1 rounded-xl border border-dashed border-zinc-700 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99]"
+        >
+          + Set Ekle
+        </button>
+        {exercise.sets.length > 1 && (
+          <button
+            type="button"
+            onClick={() => onRemoveSet(exercise.id)}
+            aria-label="Son seti sil"
+            className="h-9 w-9 shrink-0 rounded-xl border border-zinc-700 text-lg text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+          >
+            −
+          </button>
+        )}
       </div>
     </section>
   );
