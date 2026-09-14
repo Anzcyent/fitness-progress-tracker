@@ -476,29 +476,31 @@ function ExerciseCard({
                 />
               </div>
 
-              {i < exercise.sets.length - 1 && (
-                <div className="flex min-w-0 flex-[1.25] flex-col items-center justify-end gap-1.5">
-                  <span className="rounded-full bg-amber-400/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300/90">
-                    Dinlenme
+              <div
+                className={`flex min-w-0 flex-[1.25] flex-col items-center justify-end gap-1.5 ${
+                  i === exercise.sets.length - 1 ? "invisible" : ""
+                }`}
+              >
+                <span className="rounded-full bg-amber-400/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300/90">
+                  Dinlenme
+                </span>
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    enterKeyHint="next"
+                    placeholder="60"
+                    value={exercise.rests[i]}
+                    onChange={(e) =>
+                      onUpdateRest(exercise.id, i, e.target.value)
+                    }
+                    className="h-12 w-full rounded-xl border border-amber-400/20 bg-zinc-800/80 pr-6 text-center text-base font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-zinc-500">
+                    sn
                   </span>
-                  <div className="relative w-full">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      enterKeyHint="next"
-                      placeholder="60"
-                      value={exercise.rests[i]}
-                      onChange={(e) =>
-                        onUpdateRest(exercise.id, i, e.target.value)
-                      }
-                      className="h-12 w-full rounded-xl border border-amber-400/20 bg-zinc-800/80 pr-6 text-center text-base font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11px] text-zinc-500">
-                      sn
-                    </span>
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </div>
