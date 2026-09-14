@@ -526,6 +526,25 @@ function ExerciseCard({
           className="h-10 min-w-0 flex-1 rounded-xl border bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2"
           style={{ borderColor: attempted && nameMissing ? "#fbbf24" : undefined }}
         />
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          aria-label="Kartı daralt"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200 active:scale-95"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m18 15-6-6-6 6" />
+          </svg>
+        </button>
       </div>
 
       {attempted && nameMissing && (
