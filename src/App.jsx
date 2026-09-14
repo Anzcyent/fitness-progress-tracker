@@ -523,7 +523,7 @@ function ExerciseCard({
           onChange={(e) => onUpdateName(exercise.id, e.target.value)}
           aria-invalid={nameMissing}
           className="h-10 min-w-0 flex-1 rounded-xl border bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2"
-          style={{ borderColor: nameMissing ? "#fbbf24" : undefined }}
+          style={{ borderColor: attempted && nameMissing ? "#fbbf24" : undefined }}
         />
         <button
           type="button"
@@ -548,7 +548,7 @@ function ExerciseCard({
         </button>
       </div>
 
-      {nameMissing && (
+      {attempted && nameMissing && (
         <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
           <svg
             width="13"
