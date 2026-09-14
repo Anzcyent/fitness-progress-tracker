@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "workout-data-v1";
 
@@ -458,7 +458,10 @@ function ExerciseCard({
       <div className="mt-3 rounded-2xl bg-black/20 p-3 ring-1 ring-zinc-800/70">
         <div className="flex flex-wrap items-end gap-2">
           {exercise.sets.map((rep, i) => (
-            <Fragment key={i}>
+            <div
+              key={i}
+              className="flex min-w-[9rem] flex-1 items-end gap-2"
+            >
               <div className="flex min-w-[3.75rem] flex-1 flex-col items-center justify-end gap-1.5">
                 <span className="rounded-full bg-zinc-800 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   Set {i + 1}
@@ -499,7 +502,7 @@ function ExerciseCard({
                   </div>
                 </div>
               )}
-            </Fragment>
+            </div>
           ))}
         </div>
       </div>
