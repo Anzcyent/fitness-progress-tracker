@@ -195,14 +195,22 @@ function App() {
 
   const addExercise = () => setExercises((prev) => [...prev, createExercise()]);
 
-  const removeExercise = (id) =>
-    setExercises((prev) => prev.filter((ex) => ex.id !== id));
-
   const notifySave = (name) =>
     setToast({
       id: Date.now(),
       message: `${name} isimli hareket başarıyla kaydedildi.`,
+      tone: "success",
     });
+
+  const removeExercise = (id) => {
+    const target = (data[currentKey] || []).find((ex) => ex.id === id);
+    setExercises((prev) => prev.filter((ex) => ex.id !== id));
+    setToast({
+      id: Date.now(),
+      message: `${target?.name ?? "Hareket"} isimli hareket silindi.`,
+      tone: "danger",
+    });
+  };
 
   const patch = (id, updater) =>
     setExercises((prev) => prev.map((ex) => (ex.id === id ? updater(ex) : ex)));
@@ -260,6 +268,7 @@ function App() {
         <Toast
           key={toast.id}
           message={toast.message}
+          tone={toast.tone}
           onDone={() => setToast(null)}
         />
       )}
@@ -818,7 +827,7 @@ function ExerciseCard({
   );
 }
 
-function Toast({ message, onDone }) {
+function Toast({ message, tone = "success", onDone }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -832,10 +841,15 @@ function Toast({ message, onDone }) {
     };
   }, [onDone]);
 
+  const toneClasses =
+    tone === "danger"
+      ? "bg-red-500 text-red-950 shadow-red-500/40 ring-red-300/50"
+      : "bg-emerald-500 text-emerald-950 shadow-emerald-500/30 ring-emerald-300/50";
+
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 px-4">
       <div
-        className={`mx-auto flex w-fit max-w-full items-center gap-2.5 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-2xl shadow-emerald-500/30 ring-1 ring-emerald-300/50 transition-all duration-300 ease-out ${
+        className={`mx-auto flex w-fit max-w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-sm font-semibold shadow-2xl ring-1 transition-all duration-300 ease-out ${toneClasses} ${
           visible
             ? "translate-y-0 scale-100 opacity-100"
             : "translate-y-8 scale-95 opacity-0"
@@ -854,7 +868,14 @@ function Toast({ message, onDone }) {
           strokeLinejoin="round"
           className="shrink-0"
         >
-          <circle cx="12" cy="12" r="10" className="fill-emerald-600/30" />
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            className={
+              tone === "danger" ? "fill-red-600/30" : "fill-emerald-600/30"
+            }
+          />
           <path d="m9 12 2 2 4-4" />
         </svg>
         <span className="min-w-0 truncate">{message}</span>
