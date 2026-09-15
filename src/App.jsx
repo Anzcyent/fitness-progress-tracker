@@ -4,6 +4,8 @@ const STORAGE_KEY = "workout-data-v1";
 const DEFAULT_REST = 120;
 const MAX_SETS = 6;
 const ROW_GRID =
+  "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem] items-center gap-1";
+const ROW_GRID_WITH_DELETE =
   "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem_2rem] items-center gap-1";
 
 const DAY_FULL = [
@@ -615,7 +617,9 @@ function ExerciseCard({
 
             <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
               <div
-                className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
+                className={`${
+                  exercise.sets.length > 1 ? ROW_GRID_WITH_DELETE : ROW_GRID
+                } px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
               >
                 <span>SET</span>
                 <span>Geçen Hafta</span>
@@ -641,7 +645,7 @@ function ExerciseCard({
                     <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
                   </svg>
                 </span>
-                <span aria-hidden="true" />
+                {exercise.sets.length > 1 && <span aria-hidden="true" />}
               </div>
 
               {exercise.sets.map((set, i) => {
@@ -654,7 +658,11 @@ function ExerciseCard({
                 return (
                   <div
                     key={i}
-                    className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
+                    className={`${
+                      exercise.sets.length > 1
+                        ? ROW_GRID_WITH_DELETE
+                        : ROW_GRID
+                    } rounded-xl px-2 py-1 transition-colors`}
                   >
                     <span className="text-sm font-bold tabular-nums text-zinc-400">
                       {i + 1}
