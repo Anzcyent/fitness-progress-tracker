@@ -4,7 +4,7 @@ const STORAGE_KEY = "workout-data-v1";
 const DEFAULT_REST = 120;
 const MAX_SETS = 6;
 const ROW_GRID =
-  "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem] items-center gap-1";
+  "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem_2rem] items-center gap-1";
 
 const DAY_FULL = [
   "Pazartesi",
@@ -258,10 +258,10 @@ function App() {
       })
     );
 
-  const removeSet = (id) =>
+  const removeSet = (id, setIndex) =>
     patch(id, (ex) =>
       ex.sets.length > 1
-        ? { ...ex, sets: ex.sets.slice(0, -1) }
+        ? { ...ex, sets: ex.sets.filter((_, i) => i !== setIndex) }
         : ex
     );
 
@@ -641,6 +641,7 @@ function ExerciseCard({
                     <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
                   </svg>
                 </span>
+                <span aria-hidden="true" />
               </div>
 
               {exercise.sets.map((set, i) => {
@@ -720,6 +721,29 @@ function ExerciseCard({
                           : "border-amber-400/20 focus:border-amber-400 focus:ring-amber-400/40"
                       }`}
                     />
+
+                    {exercise.sets.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveSet(exercise.id, i)}
+                        aria-label={`Set ${i + 1} sil`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -756,16 +780,6 @@ function ExerciseCard({
               >
                 + Set Ekle
               </button>
-              {exercise.sets.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveSet(exercise.id)}
-                  aria-label="Son seti sil"
-                  className="h-9 w-9 shrink-0 rounded-xl border border-zinc-700 text-lg text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
-                >
-                  −
-                </button>
-              )}
               <button
                 type="button"
                 onClick={handleSave}
