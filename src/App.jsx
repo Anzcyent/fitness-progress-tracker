@@ -5,8 +5,6 @@ const DEFAULT_REST = 120;
 const MAX_SETS = 6;
 const ROW_GRID =
   "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem] items-center gap-1";
-const ROW_GRID_WITH_DELETE =
-  "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem_2rem] items-center gap-1";
 
 const DAY_FULL = [
   "Pazartesi",
@@ -260,10 +258,10 @@ function App() {
       })
     );
 
-  const removeSet = (id, setIndex) =>
+  const removeSet = (id) =>
     patch(id, (ex) =>
       ex.sets.length > 1
-        ? { ...ex, sets: ex.sets.filter((_, i) => i !== setIndex) }
+        ? { ...ex, sets: ex.sets.slice(0, -1) }
         : ex
     );
 
@@ -617,9 +615,7 @@ function ExerciseCard({
 
             <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
               <div
-                className={`${
-                  exercise.sets.length > 1 ? ROW_GRID_WITH_DELETE : ROW_GRID
-                } px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
+                className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
               >
                 <span>SET</span>
                 <span>Geçen Hafta</span>
@@ -645,7 +641,6 @@ function ExerciseCard({
                     <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
                   </svg>
                 </span>
-                {exercise.sets.length > 1 && <span aria-hidden="true" />}
               </div>
 
               {exercise.sets.map((set, i) => {
@@ -658,11 +653,7 @@ function ExerciseCard({
                 return (
                   <div
                     key={i}
-                    className={`${
-                      exercise.sets.length > 1
-                        ? ROW_GRID_WITH_DELETE
-                        : ROW_GRID
-                    } rounded-xl px-2 py-1 transition-colors`}
+                    className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
                   >
                     <span className="text-sm font-bold tabular-nums text-zinc-400">
                       {i + 1}
@@ -729,29 +720,6 @@ function ExerciseCard({
                           : "border-amber-400/20 focus:border-amber-400 focus:ring-amber-400/40"
                       }`}
                     />
-
-                    {i > 0 && exercise.sets.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => onRemoveSet(exercise.id, i)}
-                        aria-label={`Set ${i + 1} sil`}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </button>
-                    )}
                   </div>
                 );
               })}
@@ -788,6 +756,28 @@ function ExerciseCard({
               >
                 + Set Ekle
               </button>
+              {exercise.sets.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveSet(exercise.id)}
+                  aria-label="Son seti sil"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700 text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleSave}
