@@ -773,6 +773,29 @@ function ExerciseCard({
               >
                 Kaydet
               </button>
+              {!confirmDelete && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  aria-label="Egzersizi sil"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700 text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {confirmDelete ? (
@@ -798,34 +821,11 @@ function ExerciseCard({
                 </div>
               </div>
             ) : (
-              <div className="mt-1.5 flex items-center justify-between">
-                <span className="text-[10px] text-zinc-600">
-                  {atMaxSets
-                    ? `En fazla ${MAX_SETS} set eklenebilir.`
-                    : "\u00A0"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  aria-label="Egzersizi sil"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-red-500/10 hover:text-red-400 active:scale-95"
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                  </svg>
-                </button>
-              </div>
+              <span className="text-[10px] text-zinc-600">
+                {atMaxSets
+                  ? `En fazla ${MAX_SETS} set eklenebilir.`
+                  : "\u00A0"}
+              </span>
             )}
           </div>
         </div>
