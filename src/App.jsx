@@ -247,7 +247,14 @@ function App() {
       prev.map((ex) => {
         if (ex.id !== id) return ex;
         if (ex.sets.length >= MAX_SETS) return ex;
-        return { ...ex, sets: [...ex.sets, createSet()] };
+        const lastSet = ex.sets[ex.sets.length - 1];
+        return {
+          ...ex,
+          sets: [
+            ...ex.sets,
+            { ...createSet(), weight: lastSet.weight, reps: lastSet.reps, rest: lastSet.rest },
+          ],
+        };
       })
     );
 
