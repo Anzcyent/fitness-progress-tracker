@@ -722,7 +722,7 @@ function ExerciseCard({
                       }`}
                     />
 
-                    {exercise.sets.length > 1 && (
+                    {i > 0 && exercise.sets.length > 1 && (
                       <button
                         type="button"
                         onClick={() => onRemoveSet(exercise.id, i)}
