@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
+  Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   CircleAlert,
   History,
   Pencil,
   Plus,
   Repeat,
+  Sparkles,
   Timer,
   Trash2,
   TriangleAlert,
@@ -15,6 +19,8 @@ import {
 } from "lucide-react";
 
 const STORAGE_KEY = "workout-data-v1";
+const TUTORIAL_KEY = "fitness-tutorial-v1";
+const DEFAULT_TUTORIAL = { never: false, done: false };
 const DEFAULT_REST = 120;
 const MAX_SETS = 6;
 const ROW_GRID =
@@ -135,6 +141,53 @@ const getEmoji = (name) => {
   return rule ? rule.emoji : "🏋️";
 };
 
+const loadTutorial = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TUTORIAL_KEY));
+    return raw && typeof raw === "object"
+      ? { ...DEFAULT_TUTORIAL, ...raw }
+      : { ...DEFAULT_TUTORIAL };
+  } catch {
+    return { ...DEFAULT_TUTORIAL };
+  }
+};
+
+const saveTutorial = (state) =>
+  localStorage.setItem(TUTORIAL_KEY, JSON.stringify(state));
+
+const TOUR_STEPS = [
+  {
+    id: "day",
+    selector: "[data-tour='day-nav']",
+    title: "Gün & Hafta Seçimi",
+    body: "Takvimden çalışacağın günü seç. 'Geçen Hafta' ve 'Bu Hafta' sekmeleriyle başka haftaların kayıtlarını da görüntüleyebilirsin. Kayıtlı günler turuncu noktayla işaretlenir.",
+  },
+  {
+    id: "add",
+    selector: "[data-tour='add-exercise']",
+    title: "Egzersiz Ekle",
+    body: "'Yeni Egzersiz Ekle' butonuyla kart açılır. Adını yazdığında (örn. Hammer Curl) ikonu kas grubuna göre otomatik belirlenir.",
+  },
+  {
+    id: "card",
+    selector: "[data-tour='exercise-card']",
+    title: "Setlerini Doldur",
+    body: "Her set için ağırlık (kg), tekrar (tkr) ve dinlenme süresini (sn) gir. Yetmezse '+ Set Ekle' ile yeni satır ekleyebilirsin.",
+  },
+  {
+    id: "history",
+    selector: "[data-tour='exercise-card'] [data-tour='history']",
+    title: "Geçmiş Hafta Önizlemesi",
+    body: "Adı geçen haftaki kaydınla aynıysa, geçen haftanın setleri sana soluk bir önizleme olarak sunulur. Böylece geçmiş performansını görüp kendini aşabilirsin.",
+  },
+  {
+    id: "save",
+    selector: "[data-tour='exercise-card'] [data-tour='save']",
+    title: "Kaydet & Tamamla",
+    body: "Tüm setleri doldurduktan sonra 'Kaydet'e bas; kart daralır. İstersen kartı açıp tekrar düzenleyebilirsin.",
+  },
+];
+
 let nextId = 1;
 
 const parseRest = (v) => {
@@ -241,6 +294,10 @@ function App() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState(getTodayIndex());
   const [toast, setToast] = useState(null);
+  const [tutorialPref, setTutorialPref] = useState(loadTutorial);
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [demoId, setDemoId] = useState(null);
+  const [demoKey, setDemoKey] = useState(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -380,8 +437,78 @@ function App() {
     setExercises(prevExercises.map((ex) => ({ ...ex, id: nextId++ })));
   };
 
+  const updateTutorial = (patch) => {
+    const next = { ...tutorialPref, ...patch };
+    saveTutorial(next);
+    setTutorialPref(next);
+  };
+
+  const seedDemo = () => {
+    if ((data[currentKey] || []).length > 0) return;
+    const id = nextId++;
+    const demo = {
+      id,
+      name: "Hammer Curl",
+      sets: [
+        { weight: "20", reps: 12, completed: false, rest: "90" },
+        { weight: "20", reps: 10, completed: false, rest: "120" },
+        { weight: "20", reps: 8, completed: false, rest: "120" },
+      ],
+    };
+    setData((prev) => ({
+      ...prev,
+      [currentKey]: [...(prev[currentKey] || []), demo],
+    }));
+    setDemoId(id);
+    setDemoKey(currentKey);
+  };
+
+  const endTour = () => {
+    if (demoId != null && demoKey != null) {
+      setData((prev) => ({
+        ...prev,
+        [demoKey]: (prev[demoKey] || []).filter((ex) => ex.id !== demoId),
+      }));
+    }
+    setDemoId(null);
+    setDemoKey(null);
+    setTutorialActive(false);
+  };
+
+  const handleConfirmTutorial = (never) => {
+    updateTutorial({ done: true, ...(never ? { never: true } : {}) });
+    seedDemo();
+    setTutorialActive(true);
+  };
+
+  const handleSkipTutorial = (never) => {
+    if (never) updateTutorial({ never: true });
+  };
+
+  const showTutorialPrompt =
+    !tutorialActive && !tutorialPref.done && !tutorialPref.never;
+
   return (
     <div className="min-h-dvh bg-zinc-950 font-sans text-zinc-100 antialiased">
+      <style>{`
+        @keyframes promptPop {
+          from { opacity: 0; transform: translateY(12px) scale(.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes tourPop {
+          from { opacity: 0; transform: translateY(8px) scale(.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+      {showTutorialPrompt && (
+        <TutorialPrompt
+          onConfirm={handleConfirmTutorial}
+          onSkip={handleSkipTutorial}
+        />
+      )}
+      {tutorialActive && (
+        <TourOverlay steps={TOUR_STEPS} onEnd={endTour} />
+      )}
       {toast && (
         <Toast
           key={toast.id}
@@ -428,7 +555,10 @@ function App() {
           </div>
         </header>
 
-        <div className="mt-4 rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-3 shadow-xl shadow-black/20 backdrop-blur">
+        <div
+          data-tour="day-nav"
+          className="mt-4 rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-3 shadow-xl shadow-black/20 backdrop-blur"
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-1 rounded-xl bg-zinc-800/70 p-1">
               <button
@@ -497,6 +627,7 @@ function App() {
         <button
           type="button"
           onClick={addExercise}
+          data-tour="add-exercise"
           className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-700 text-base font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99]"
         >
           <span className="text-2xl leading-none">+</span> Yeni Egzersiz Ekle
@@ -530,6 +661,7 @@ function App() {
                   accent={ACCENTS[index % ACCENTS.length]}
                   prevExercise={prevExercise}
                   prevLabel={prevLabel}
+                  forceExpand={tutorialActive && index === 0}
                   onUpdateName={updateName}
                   onUpdateSetWeight={updateSetWeight}
                   onUpdateSetRep={updateSetRep}
@@ -562,6 +694,7 @@ function ExerciseCard({
   exercise,
   prevExercise,
   prevLabel,
+  forceExpand = false,
   onUpdateName,
   onUpdateSetWeight,
   onUpdateSetRep,
@@ -576,6 +709,13 @@ function ExerciseCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+
+  useEffect(() => {
+    if (forceExpand) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setCollapsed(false);
+    }
+  }, [forceExpand]);
 
   const nameMissing = exercise.name.trim() === "";
   const emptyIndexes = exercise.sets
@@ -618,7 +758,10 @@ function ExerciseCard({
   };
 
   return (
-    <section className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/70 to-zinc-950/70 p-3 shadow-xl shadow-black/25 transition-colors hover:border-zinc-700/70">
+    <section
+      data-tour="exercise-card"
+      className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/70 to-zinc-950/70 p-3 shadow-xl shadow-black/25 transition-colors hover:border-zinc-700/70"
+    >
       <div className="flex items-center gap-2.5">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-500/10 p-2 text-lg text-lime-400 ring-1 ring-lime-500/20">
           {emoji}
@@ -822,6 +965,7 @@ function ExerciseCard({
             </div>
 
 <div
+              data-tour="history"
               className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
                 prevExercise ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
               }`}
@@ -904,6 +1048,7 @@ function ExerciseCard({
               <button
                 type="button"
                 onClick={handleSave}
+                data-tour="save"
                 className="h-9 shrink-0 rounded-xl bg-lime-400 px-5 text-sm font-medium text-black shadow-lg shadow-lime-500/10 transition hover:bg-lime-300 active:scale-[0.98]"
               >
                 Kaydet
@@ -1008,6 +1153,247 @@ function Toast({ message, tone = "success", onDone }) {
           <path d="m9 12 2 2 4-4" />
         </svg>
         <span className="min-w-0 truncate">{message}</span>
+      </div>
+    </div>
+  );
+}
+
+function TutorialPrompt({ onConfirm, onSkip }) {
+  const [never, setNever] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-950/75 p-4 backdrop-blur-sm">
+      <div
+        className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-2xl shadow-black/40"
+        style={{ animation: "promptPop .3s ease-out" }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tutorial-prompt-title"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-500/10 text-lime-400 ring-1 ring-lime-500/20">
+            <Sparkles size={18} strokeWidth={2} />
+          </span>
+          <div>
+            <h2
+              id="tutorial-prompt-title"
+              className="text-base font-bold leading-snug text-zinc-100"
+            >
+              Uygulamanın nasıl kullanıldığını öğrenmek ister misiniz?
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+              Kısa bir turla adım adım göstereceğiz; istediğin an çıkabilirsin.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => onConfirm(never)}
+            aria-label="Evet, öğrenmek istiyorum"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 active:scale-95"
+          >
+            <Check size={26} strokeWidth={3} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onSkip(never)}
+            aria-label="Hayır, şimdilik istemiyorum"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/30 transition hover:bg-red-400 active:scale-95"
+          >
+            <X size={26} strokeWidth={3} />
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setNever((v) => !v)}
+          aria-pressed={never}
+          className="mx-auto mt-5 flex items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium text-zinc-400 transition hover:text-zinc-200"
+        >
+          <span
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+              never ? "bg-lime-500" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                never ? "translate-x-4" : "translate-x-0.5"
+              }`}
+            />
+          </span>
+          Bir daha bu kutuyu gösterme
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TourOverlay({ steps, onEnd }) {
+  const [list, setList] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [rect, setRect] = useState(null);
+  const [tip, setTip] = useState(null);
+  const tipRef = useRef(null);
+
+  useEffect(() => {
+    const available = steps.filter((s) => {
+      const el = document.querySelector(s.selector);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.height > 4 && r.width > 4;
+    });
+    // oxlint-disable-next-line react/set-state-in-effect
+    setList(available);
+  }, [steps]);
+
+  const stepIndex = Math.min(index, Math.max(list.length - 1, 0));
+  const activeStep = list[stepIndex];
+
+  useEffect(() => {
+    if (!activeStep) return;
+    const el = document.querySelector(activeStep.selector);
+    if (!el) return;
+    const measure = () => setRect(el.getBoundingClientRect());
+    measure();
+    const id = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [activeStep]);
+
+  useLayoutEffect(() => {
+    if (!rect || !tipRef.current) return;
+    const t = tipRef.current.getBoundingClientRect();
+    const pad = 12;
+    const place =
+      rect.bottom + t.height + pad > window.innerHeight - 8 ? "top" : "bottom";
+    const left = Math.min(
+      Math.max(rect.left + rect.width / 2 - t.width / 2, 8),
+      Math.max(8, window.innerWidth - t.width - 8)
+    );
+    const top =
+      place === "bottom"
+        ? rect.bottom + pad
+        : Math.max(8, rect.top - pad - t.height);
+    setTip({ left, top, place });
+  }, [rect, stepIndex, list]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onEnd();
+      if (e.key === "ArrowRight") setIndex((i) => Math.min(i + 1, list.length - 1));
+      if (e.key === "ArrowLeft") setIndex((i) => Math.max(i - 1, 0));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onEnd, list.length]);
+
+  if (!activeStep) return null;
+
+  const isLast = stepIndex === list.length - 1;
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[80]">
+      <div
+        className="pointer-events-none fixed transition-all duration-300 ease-out"
+        style={{
+          left: rect ? rect.left - 8 : 0,
+          top: rect ? rect.top - 8 : 0,
+          width: rect ? rect.width + 16 : 0,
+          height: rect ? rect.height + 16 : 0,
+          borderRadius: 18,
+          boxShadow: rect
+            ? "0 0 0 9999px rgba(9,9,11,.82), 0 0 0 2px rgba(163,230,53,.55)"
+            : "none",
+        }}
+      />
+
+      <div
+        ref={tipRef}
+        role="dialog"
+        aria-modal="true"
+        className="pointer-events-auto fixed z-10 w-[min(88vw,320px)] rounded-2xl border border-zinc-700/60 bg-zinc-900 p-4 shadow-2xl shadow-black/50"
+        style={{
+          left: tip?.left ?? 0,
+          top: tip?.top ?? 0,
+          visibility: tip ? "visible" : "hidden",
+          animation: "tourPop .28s ease-out",
+        }}
+      >
+        <span
+          className={`absolute left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-zinc-700/60 bg-zinc-900 ${
+            tip?.place === "top"
+              ? "-bottom-1.5 border-b border-r"
+              : "-top-1.5 border-l border-t"
+          }`}
+        />
+
+        <div className="flex items-start justify-between gap-2">
+          <span className="rounded-md bg-lime-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-lime-400 ring-1 ring-lime-500/20">
+            {stepIndex + 1} / {list.length}
+          </span>
+          <button
+            type="button"
+            onClick={onEnd}
+            aria-label="Turu kapat"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            <X size={14} strokeWidth={2} />
+          </button>
+        </div>
+
+        <h3 className="mt-2 text-sm font-bold text-zinc-100">
+          {activeStep.title}
+        </h3>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+          {activeStep.body}
+        </p>
+
+        <div className="mt-3.5 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIndex((i) => Math.max(i - 1, 0))}
+            disabled={stepIndex === 0}
+            className="flex h-8 items-center gap-1 rounded-lg border border-zinc-700/60 px-2.5 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft size={14} strokeWidth={2.5} />
+            Geri
+          </button>
+          <div className="flex flex-1 items-center justify-center gap-1.5">
+            {list.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === stepIndex ? "w-4 bg-lime-400" : "w-1.5 bg-zinc-600"
+                }`}
+              />
+            ))}
+          </div>
+          {isLast ? (
+            <button
+              type="button"
+              onClick={onEnd}
+              className="h-8 rounded-lg bg-lime-400 px-3.5 text-xs font-bold text-black shadow-lg shadow-lime-500/20 transition hover:bg-lime-300"
+            >
+              Bitir
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIndex((i) => Math.min(i + 1, list.length - 1))}
+              className="flex h-8 items-center gap-1 rounded-lg bg-lime-400 px-3 text-xs font-bold text-black shadow-lg shadow-lime-500/20 transition hover:bg-lime-300"
+            >
+              İleri
+              <ChevronRight size={14} strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
