@@ -26,14 +26,99 @@ const ACCENTS = [
   { chip: "bg-cyan-400/10 text-cyan-300 ring-cyan-400/25", text: "text-cyan-300", focus: "focus:border-cyan-400 focus:ring-cyan-400/40" },
 ];
 
+const normalizeName = (name) =>
+  (name || "")
+    .toLowerCase()
+    .replace(/[ıİ]/g, "i")
+    .replace(/[şŞ]/g, "s")
+    .replace(/[ğĞ]/g, "g")
+    .replace(/[üÜ]/g, "u")
+    .replace(/[öÖ]/g, "o")
+    .replace(/[çÇ]/g, "c")
+    .replace(/i\u0307/g, "i");
+
+const hasAny = (text, terms) => terms.some((term) => text.includes(term));
+
+const EMOJI_RULES = [
+  {
+    emoji: "🏃",
+    terms: [
+      "kardiyo", "cardio", "kosu", "running", "bisiklet", "cycl", "eliptik",
+      "elliptical", "ip atlama", "jump rope", "jumping jack", "burpee",
+      "yuruyus", "walk", "stepper", "treadmill", "rowing machine", "hiit",
+      "zumba", "aerobik", "aerobics", "yuzme", "swim",
+    ],
+  },
+  {
+    emoji: "🔥",
+    terms: [
+      "karin", "abs", "core", "plank", "crunch", "mekik", "sit-up", "situp",
+      "sit up", "leg raise", "russian twist", "woodchop", "hollow", "dead bug",
+      "flutter kick", "mountain climber", "bicycle crunch", "scissor", "bel ",
+      "cable crunch", "v-up", "v up", "toe touch",
+    ],
+  },
+  {
+    emoji: "🦵",
+    terms: [
+      "bacak", "leg ", "leg-", "legs", "squat", "lunge", "calf", "baldir",
+      "hamstring", "quad", "glute", "kalca", "hip thrust", "hip ",
+      "adductor", "abductor", "adduktor", "abduktor", "step up", "step-up",
+      "leg curl", "leg extension", "leg press", "hack squat", "sumo",
+      "split squat", "good morning", "sissy", "donkey", "rdl",
+      "romanian deadlift", "stiff leg", "pistol squat", "wall sit", "bridge",
+    ],
+  },
+  {
+    emoji: "🤸",
+    terms: [
+      "omuz", "shoulder", "military press", "overhead press", "ohp",
+      "arnold press", "lateral raise", "lateral delt", "front raise",
+      "rear delt", "reverse fly", "shrug", "trapez", "trap ", "upright row",
+      "deltoid", "delt ", "landmine press", "handstand",
+    ],
+  },
+  {
+    emoji: "🏋️",
+    terms: [
+      "gogus", "chest", "bench press", "bench", "fly", "flye", "pec",
+      "pec deck", "push-up", "push up", "pushup", "sinav", "crossover",
+      "dip", "guillotine", "chest press", "gogus pres", "dumbbell press",
+      "svend",
+    ],
+  },
+  {
+    emoji: "🧗",
+    terms: [
+      "sirt", "lat ", "lats", "row", "kurek", "cekis",
+      "pulldown", "pull down", "pull-up", "pullup", "pull up", "chin-up",
+      "chin up", "chinup", "barfiks", "deadlift", "hyperextension", "ters mekik",
+      "face pull", "t-bar", "t bar", "seated row", "cable row",
+    ],
+  },
+  {
+    emoji: "💪",
+    terms: [
+      "biceps", "biseps", "triceps", "triseps", "kol", "arm ", "curl",
+      "hammer", "scott", "preacher", "concentration", "pushdown",
+      "push down", "skull crusher", "french press", "fransiz", "wrist",
+      "forearm", "bilek", "on kol", "arka kol", "kickback",
+      "overhead extension", "triceps extension",
+    ],
+  },
+  {
+    emoji: "🧘",
+    terms: [
+      "esneklik", "mobilite", "mobility", "stretch", "germe", "yoga", "pilates",
+      "esneme", "foam roller", "cat cow", "downward dog",
+    ],
+  },
+];
+
 const getEmoji = (name) => {
-  const n = name.toLowerCase();
-  if (n.includes("göğüs") || n.includes("gogus")) return "🏋️";
-  if (n.includes("sırt") || n.includes("sirt")) return "🧗";
-  if (n.includes("omuz")) return "🤸";
-  if (n.includes("biceps") || n.includes("triceps") || n.includes("kol")) return "💪";
-  if (n.includes("leg") || n.includes("bacak") || n.includes("curl")) return "🦵";
-  return "🏋️";
+  const n = normalizeName(name);
+  const rule = EMOJI_RULES.find(({ terms }) => hasAny(n, terms));
+  return rule ? rule.emoji : "🏋️";
 };
 
 let nextId = 1;
