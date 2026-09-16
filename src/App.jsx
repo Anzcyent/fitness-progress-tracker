@@ -1,10 +1,24 @@
 import { useEffect, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  CircleAlert,
+  History,
+  Pencil,
+  Plus,
+  Repeat,
+  Timer,
+  Trash2,
+  TriangleAlert,
+  Weight,
+  X,
+} from "lucide-react";
 
 const STORAGE_KEY = "workout-data-v1";
 const DEFAULT_REST = 120;
 const MAX_SETS = 6;
 const ROW_GRID =
-  "grid grid-cols-[1.5rem_3rem_3rem_3.5rem] items-center gap-1";
+  "grid grid-cols-[1.5rem_1fr_1fr_1fr] items-center gap-1";
 
 const DAY_FULL = [
   "Pazartesi",
@@ -221,14 +235,6 @@ const loadData = () => {
 };
 
 const fmtDayNum = (iso) => new Date(iso + "T00:00:00").getDate();
-
-const fmtSet = (row) => {
-  if (!row) return "";
-  const w = String(row.weight ?? "").trim();
-  const r = row.reps ?? 0;
-  if (!w && !r) return "—";
-  return `${w}${w ? " kg" : ""} × ${r}`;
-};
 
 function App() {
   const [data, setData] = useState(loadData);
@@ -554,7 +560,6 @@ function App() {
 
 function ExerciseCard({
   exercise,
-  accent,
   prevExercise,
   prevLabel,
   onUpdateName,
@@ -569,6 +574,8 @@ function ExerciseCard({
   const [collapsed, setCollapsed] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
   const nameMissing = exercise.name.trim() === "";
   const emptyIndexes = exercise.sets
@@ -582,103 +589,99 @@ function ExerciseCard({
     .filter((i) => i !== -1);
   const canSave = !nameMissing && emptyIndexes.length === 0;
   const atMaxSets = exercise.sets.length >= MAX_SETS;
-
-  const active = nameMissing
-    ? {
-        chip: "bg-lime-400/10 text-lime-300 ring-lime-400/25",
-      }
-    : accent;
   const emoji = getEmoji(exercise.name);
+  const showNameInput = !collapsed && (editingName || nameMissing);
+
+  const inputBase =
+    "h-10 w-full rounded-xl border bg-zinc-800/50 px-2 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:font-medium placeholder:text-zinc-600 focus:outline-none focus:ring-2 transition-colors";
+  const unitCls =
+    "pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-semibold uppercase tracking-wide text-zinc-500";
+  const headerCls = (field, idleColor) =>
+    `flex items-center justify-center gap-1 transition-colors ${
+      focusedField === field ? "text-lime-400" : idleColor
+    }`;
+
+  const toggleCollapsed = () => {
+    if (!collapsed) setEditingName(false);
+    setCollapsed(!collapsed);
+  };
+
+  const commitName = () => setEditingName(false);
 
   const handleSave = () => {
     setAttempted(true);
     if (canSave) {
       setCollapsed(true);
+      setEditingName(false);
       onSave(exercise.name);
     }
   };
 
   return (
-    <section
-      className={`rounded-3xl border p-3 shadow-xl shadow-black/30 transition-colors ${
-        nameMissing
-          ? "border-lime-400/30 bg-gradient-to-b from-lime-400/[0.08] to-zinc-900/60"
-          : "border-zinc-800/80 bg-gradient-to-b from-zinc-800/50 to-zinc-900/60"
-      }`}
-    >
-      {collapsed ? (
-        <button
-          type="button"
-          onClick={() => setCollapsed(false)}
-          className="flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition hover:bg-zinc-800/50"
-        >
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${active.chip}`}
+    <section className="rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/70 to-zinc-950/70 p-3 shadow-xl shadow-black/25 transition-colors hover:border-zinc-700/70">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-500/10 p-2 text-lg text-lime-400 ring-1 ring-lime-500/20">
+          {emoji}
+        </span>
+
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            className="min-w-0 flex-1 rounded-xl py-1 pl-1 text-left transition hover:bg-zinc-800/40"
           >
-            {emoji}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-zinc-100">
+            <h3 className="truncate text-sm font-semibold text-zinc-100">
               {exercise.name}
-            </span>
-            <span className="block text-[10px] font-medium text-zinc-500">
+            </h3>
+            <p className="mt-0.5 text-[11px] font-medium text-zinc-500">
+              <span className="mr-1.5 inline-block h-1 w-1 rounded-full bg-amber-400/80 align-middle" />
               {exercise.sets.length} set
-            </span>
-          </span>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-zinc-500"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-      ) : (
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${active.chip}`}
-          >
-            {emoji}
-          </span>
+            </p>
+          </button>
+        ) : showNameInput ? (
           <input
             type="text"
             placeholder="Egzersiz adı (örn. Göğüs Fly)"
-            enterKeyHint="next"
+            enterKeyHint="done"
+            autoFocus={editingName}
             value={exercise.name}
             onChange={(e) => onUpdateName(exercise.id, e.target.value)}
-            aria-invalid={nameMissing}
-            className="h-10 min-w-0 flex-1 rounded-xl border bg-zinc-800/70 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2"
-            style={{
-              borderColor: attempted && nameMissing ? "#fbbf24" : undefined,
+            onBlur={commitName}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitName();
             }}
+            aria-invalid={attempted && nameMissing}
+            className="h-10 min-w-0 flex-1 rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3 text-sm font-semibold text-zinc-100 placeholder:font-medium placeholder:text-zinc-500 focus:border-lime-400/50 focus:outline-none focus:ring-2 focus:ring-lime-500/30"
           />
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            aria-label="Kartı daralt"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200 active:scale-95"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-zinc-100">
+              {exercise.name}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setEditingName(true)}
+              aria-label="Egzersiz adını düzenle"
+              className="shrink-0 rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
             >
-              <path d="m18 15-6-6-6 6" />
-            </svg>
-          </button>
-        </div>
-      )}
+              <Pencil size={13} strokeWidth={2} />
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Kartı aç" : "Kartı daralt"}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+        >
+          {collapsed ? (
+            <ChevronDown size={17} strokeWidth={2} />
+          ) : (
+            <ChevronUp size={17} strokeWidth={2} />
+          )}
+        </button>
+      </div>
 
       <div
         className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
@@ -692,22 +695,8 @@ function ExerciseCard({
             }`}
           >
             {attempted && nameMissing && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="shrink-0"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
+                <TriangleAlert size={13} strokeWidth={2} className="shrink-0" />
                 Egzersiz adı gerekli — kartı kaydedip daraltmak için bir isim
                 gir.
               </p>
@@ -715,30 +704,27 @@ function ExerciseCard({
 
             <div className="mt-2.5 flex flex-col gap-1 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
               <div
-                className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
+                className={`${ROW_GRID} px-2 pb-1.5 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400`}
               >
                 <span>SET</span>
-                <span className="text-center">KG</span>
-                <span className="text-center">TKR</span>
+                <span className={headerCls("weight", "text-zinc-400")}>
+                  <Weight size={12} strokeWidth={2.5} />
+                  <span className="text-[9px] font-bold">KG</span>
+                </span>
+                <span className={headerCls("reps", "text-zinc-400")}>
+                  <Repeat size={12} strokeWidth={2.5} />
+                  <span className="text-[9px] font-bold">TKR</span>
+                </span>
                 <span
                   title="Dinlenme (sn)"
-                  className="flex justify-center text-amber-300/90"
+                  className={`flex items-center justify-center gap-1 transition-colors ${
+                    focusedField === "rest"
+                      ? "text-amber-300"
+                      : "text-amber-300/70"
+                  }`}
                 >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M5 22h14" />
-                    <path d="M5 2h14" />
-                    <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-                    <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
-                  </svg>
+                  <Timer size={12} strokeWidth={2.5} />
+                  <span className="text-[9px] font-bold">sn</span>
                 </span>
               </div>
 
@@ -747,80 +733,95 @@ function ExerciseCard({
                 const repsMissing = attempted && !(Number(set.reps) > 0);
                 const restMissing =
                   attempted && String(set.rest ?? "").trim() === "";
-                const invalidCls =
-                  "border-red-400/70 focus:border-red-400 focus:ring-red-400/30";
+                const err =
+                  "border-red-400/60 focus:border-red-400 focus:ring-red-400/30";
+                const last = i === exercise.sets.length - 1;
                 return (
                   <div
                     key={i}
-                    className={`${ROW_GRID} rounded-xl px-2 py-1 transition-colors`}
+                    className={`${ROW_GRID} rounded-xl px-2 py-0.5 transition-colors hover:bg-zinc-800/25`}
                   >
-                    <span className="text-sm font-bold tabular-nums text-zinc-400">
+                    <span className="text-sm font-bold tabular-nums text-zinc-500">
                       {i + 1}
                     </span>
 
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      enterKeyHint="next"
-                      placeholder="0"
-                      value={set.weight}
-                      onChange={(e) =>
-                        onUpdateSetWeight(exercise.id, i, e.target.value)
-                      }
-                      aria-label={`Set ${i + 1} ağırlık`}
-                      aria-invalid={weightMissing}
-                      className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                        weightMissing
-                          ? invalidCls
-                          : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
-                      }`}
-                    />
+                    <label className="relative block">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        enterKeyHint="next"
+                        placeholder="0"
+                        value={set.weight}
+                        onChange={(e) =>
+                          onUpdateSetWeight(exercise.id, i, e.target.value)
+                        }
+                        aria-label={`Set ${i + 1} ağırlık`}
+                        aria-invalid={weightMissing}
+                        onFocus={() => setFocusedField("weight")}
+                        onBlur={() => setFocusedField((f) => (f === "weight" ? null : f))}
+                        style={{ paddingLeft: "1rem", paddingRight: "1.75rem" }}
+                        className={`${inputBase} ${
+                          weightMissing
+                            ? err
+                            : "border-zinc-700/50 focus:border-lime-400/50 focus:ring-lime-500/40"
+                        }`}
+                      />
+                      <span className={unitCls}>kg</span>
+                    </label>
 
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      enterKeyHint={
-                        i === exercise.sets.length - 1 ? "done" : "next"
-                      }
-                      placeholder="–"
-                      value={set.reps || ""}
-                      onChange={(e) =>
-                        onUpdateSetRep(exercise.id, i, e.target.value)
-                      }
-                      aria-label={`Set ${i + 1} tekrar`}
-                      aria-invalid={repsMissing}
-                      className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-bold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                        repsMissing
-                          ? invalidCls
-                          : "border-zinc-700 focus:border-lime-400 focus:ring-lime-400/40"
-                      }`}
-                    />
+                    <label className="relative block">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        enterKeyHint={last ? "done" : "next"}
+                        placeholder="–"
+                        value={set.reps || ""}
+                        onChange={(e) =>
+                          onUpdateSetRep(exercise.id, i, e.target.value)
+                        }
+                        aria-label={`Set ${i + 1} tekrar`}
+                        aria-invalid={repsMissing}
+                        onFocus={() => setFocusedField("reps")}
+                        onBlur={() => setFocusedField((f) => (f === "reps" ? null : f))}
+                        style={{ paddingLeft: "1rem", paddingRight: "1.75rem" }}
+                        className={`${inputBase} ${
+                          repsMissing
+                            ? err
+                            : "border-zinc-700/50 focus:border-lime-400/50 focus:ring-lime-500/40"
+                        }`}
+                      />
+                      <span className={unitCls}>tkr</span>
+                    </label>
 
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      enterKeyHint={
-                        i === exercise.sets.length - 1 ? "done" : "next"
-                      }
-                      placeholder="60"
-                      value={set.rest || ""}
-                      onChange={(e) =>
-                        onUpdateSetRest(exercise.id, i, e.target.value)
-                      }
-                      aria-label={`Set ${i + 1} dinlenme saniye`}
-                      aria-invalid={restMissing}
-                      className={`h-9 w-full min-w-0 rounded-lg border bg-zinc-800/70 px-1 text-center text-sm font-semibold tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 ${
-                        restMissing
-                          ? invalidCls
-                          : "border-amber-400/20 focus:border-amber-400 focus:ring-amber-400/40"
-                      }`}
-                    />
+                    <label className="relative block">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        enterKeyHint={last ? "done" : "next"}
+                        placeholder="60"
+                        value={set.rest || ""}
+                        onChange={(e) =>
+                          onUpdateSetRest(exercise.id, i, e.target.value)
+                        }
+                        aria-label={`Set ${i + 1} dinlenme saniye`}
+                        aria-invalid={restMissing}
+                        onFocus={() => setFocusedField("rest")}
+                        onBlur={() => setFocusedField((f) => (f === "rest" ? null : f))}
+                        style={{ paddingLeft: "1rem", paddingRight: "1.75rem" }}
+                        className={`${inputBase} ${
+                          restMissing
+                            ? err
+                            : "border-amber-400/20 focus:border-amber-400/60 focus:ring-amber-400/40"
+                        }`}
+                      />
+                      <span className={unitCls}>sn</span>
+                    </label>
                   </div>
                 );
               })}
             </div>
 
-            <div
+<div
               className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
                 prevExercise ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
               }`}
@@ -830,44 +831,42 @@ function ExerciseCard({
                 <div
                   className={`transition-opacity duration-300 ease-in-out ${
                     prevExercise
-                      ? "opacity-70"
+                      ? "opacity-100"
                       : "pointer-events-none opacity-0"
                   }`}
                 >
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5">
-                    <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-600">
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M4.5 12a7.5 7.5 0 1 1 .5 3" />
-                        <path d="M4.5 4.5V12H12" />
-                      </svg>
-                      Geçen hafta · {prevLabel}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {prevExercise?.sets.map((s, i) => (
-                        <span
-                          key={i}
-                          className="flex items-center gap-1.5 rounded-lg bg-zinc-800/60 px-2 py-1 text-[11px] font-semibold tabular-nums text-zinc-400 ring-1 ring-zinc-700/50"
-                        >
-                          <span className="text-[10px] font-bold text-zinc-600">
-                            S{i + 1}
-                          </span>
-                          <span>{fmtSet(s)}</span>
-                          {String(s?.rest ?? "").trim() && (
-                            <span className="text-[10px] text-zinc-600">
-                              · {String(s.rest).trim()} sn
+                  <div className="mt-2.5 rounded-2xl bg-black/20 p-1.5 ring-1 ring-zinc-800/70">
+                    <div className={`${ROW_GRID} px-2 pb-1.5 pt-0.5`}>
+                      <span className="col-span-4 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        <History size={13} strokeWidth={2} />
+                        Geçen hafta · {prevLabel}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {prevExercise?.sets.map((s, i) => {
+                        const w = String(s?.weight ?? "").trim();
+                        const r = s?.reps ?? 0;
+                        const rest = String(s?.rest ?? "").trim();
+                        return (
+                          <div
+                            key={i}
+                            className={`${ROW_GRID} rounded-lg px-2 py-0.5 transition-colors hover:bg-zinc-800/25`}
+                          >
+                            <span className="text-sm font-bold tabular-nums text-zinc-500">
+                              {i + 1}
                             </span>
-                          )}
-                        </span>
-                      ))}
+                            <span className="truncate text-center text-xs font-medium tabular-nums text-zinc-500">
+                              {w ? `${w} kg` : "—"}
+                            </span>
+                            <span className="truncate text-center text-xs font-medium tabular-nums text-zinc-500">
+                              {r || "—"}
+                            </span>
+                            <span className="truncate text-center text-xs font-medium tabular-nums text-zinc-500">
+                              {rest ? `${rest} sn` : "—"}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -875,62 +874,37 @@ function ExerciseCard({
             </div>
 
             {attempted && emptyIndexes.length > 0 && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="shrink-0"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
+                <CircleAlert size={13} strokeWidth={2} className="shrink-0" />
                 Boş alanlar var — tüm setlerde ağırlık, tekrar ve dinlenme
                 süresini doldur.
               </p>
             )}
 
-            <div className="mt-2.5 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => onAddSet(exercise.id)}
                 disabled={atMaxSets}
-                className="h-9 flex-1 rounded-xl border border-dashed border-zinc-700 text-xs font-semibold text-zinc-300 transition hover:border-lime-400 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:bg-transparent disabled:hover:text-zinc-300"
+                className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700/80 text-xs font-semibold text-zinc-400 transition hover:border-lime-400/60 hover:bg-lime-400/5 hover:text-lime-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700/80 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
               >
-                + Set Ekle
+                <Plus size={14} strokeWidth={2.5} />
+                Set Ekle
               </button>
               {exercise.sets.length > 1 && (
                 <button
                   type="button"
                   onClick={() => onRemoveSet(exercise.id)}
                   aria-label="Son seti sil"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700 text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700/60 text-zinc-400 transition hover:border-red-400/60 hover:text-red-300 active:scale-95"
                 >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+                  <X size={15} strokeWidth={2} />
                 </button>
               )}
               <button
                 type="button"
                 onClick={handleSave}
-                className="h-9 shrink-0 rounded-xl bg-lime-400 px-4 text-xs font-bold text-zinc-950 shadow-lg shadow-lime-400/20 transition hover:bg-lime-300 active:scale-[0.98]"
+                className="h-9 shrink-0 rounded-xl bg-lime-400 px-5 text-sm font-medium text-black shadow-lg shadow-lime-500/10 transition hover:bg-lime-300 active:scale-[0.98]"
               >
                 Kaydet
               </button>
@@ -939,22 +913,9 @@ function ExerciseCard({
                   type="button"
                   onClick={() => setConfirmDelete(true)}
                   aria-label="Egzersizi sil"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700 text-zinc-400 transition hover:border-red-400 hover:text-red-300 active:scale-95"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400 active:scale-95"
                 >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                  </svg>
+                  <Trash2 size={15} strokeWidth={2} />
                 </button>
               )}
             </div>
