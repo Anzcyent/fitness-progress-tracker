@@ -4,7 +4,7 @@ const STORAGE_KEY = "workout-data-v1";
 const DEFAULT_REST = 120;
 const MAX_SETS = 6;
 const ROW_GRID =
-  "grid grid-cols-[1.5rem_1fr_3rem_3rem_3.5rem] items-center gap-1";
+  "grid grid-cols-[1.5rem_3rem_3rem_3.5rem] items-center gap-1";
 
 const DAY_FULL = [
   "Pazartesi",
@@ -222,8 +222,8 @@ const loadData = () => {
 
 const fmtDayNum = (iso) => new Date(iso + "T00:00:00").getDate();
 
-const fmtPrev = (row) => {
-  if (!row) return "—";
+const fmtSet = (row) => {
+  if (!row) return "";
   const w = String(row.weight ?? "").trim();
   const r = row.reps ?? 0;
   if (!w && !r) return "—";
@@ -258,6 +258,26 @@ function App() {
   const prevKey = toISO(addDays(selectedDate, -7));
   const prevExercises = data[prevKey] || [];
   const hasPrevWeek = prevExercises.length > 0;
+  const prevLabel = new Date(prevKey + "T00:00:00").toLocaleDateString(
+    "tr-TR",
+    { day: "numeric", month: "short" }
+  );
+
+  const findPrevMatch = (name) => {
+    const nn = normalizeName(name).trim();
+    if (!nn) return undefined;
+    const exact = prevExercises.find(
+      (p) => normalizeName(p.name).trim() === nn
+    );
+    if (exact) return exact;
+    if (nn.length >= 3) {
+      const candidates = prevExercises.filter((p) =>
+        normalizeName(p.name).trim().startsWith(nn)
+      );
+      return candidates.length === 1 ? candidates[0] : undefined;
+    }
+    return undefined;
+  };
 
   const weekRange = `${new Date(
     weekDates[0] + "T00:00:00"
@@ -496,20 +516,14 @@ function App() {
         ) : (
           <div className="mt-4 flex flex-col gap-3">
             {exercises.map((exercise, index) => {
-              const matched =
-                exercise.name.trim() !== ""
-                  ? prevExercises.find(
-                      (p) =>
-                        p.name.trim().toLowerCase() ===
-                        exercise.name.trim().toLowerCase()
-                    )
-                  : undefined;
+              const prevExercise = findPrevMatch(exercise.name);
               return (
                 <ExerciseCard
                   key={exercise.id}
                   exercise={exercise}
                   accent={ACCENTS[index % ACCENTS.length]}
-                  prevRows={matched ? matched.sets : []}
+                  prevExercise={prevExercise}
+                  prevLabel={prevLabel}
                   onUpdateName={updateName}
                   onUpdateSetWeight={updateSetWeight}
                   onUpdateSetRep={updateSetRep}
@@ -541,7 +555,8 @@ function App() {
 function ExerciseCard({
   exercise,
   accent,
-  prevRows,
+  prevExercise,
+  prevLabel,
   onUpdateName,
   onUpdateSetWeight,
   onUpdateSetRep,
@@ -703,7 +718,6 @@ function ExerciseCard({
                 className={`${ROW_GRID} px-2 pb-1 pt-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-500`}
               >
                 <span>SET</span>
-                <span>Geçen Hafta</span>
                 <span className="text-center">KG</span>
                 <span className="text-center">TKR</span>
                 <span
@@ -742,10 +756,6 @@ function ExerciseCard({
                   >
                     <span className="text-sm font-bold tabular-nums text-zinc-400">
                       {i + 1}
-                    </span>
-
-                    <span className="truncate text-[11px] font-medium tabular-nums text-zinc-500">
-                      {fmtPrev(prevRows[i])}
                     </span>
 
                     <input
@@ -808,6 +818,60 @@ function ExerciseCard({
                   </div>
                 );
               })}
+            </div>
+
+            <div
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                prevExercise ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+              }`}
+              aria-hidden={!prevExercise}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  className={`transition-opacity duration-300 ease-in-out ${
+                    prevExercise
+                      ? "opacity-70"
+                      : "pointer-events-none opacity-0"
+                  }`}
+                >
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5">
+                    <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-zinc-600">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M4.5 12a7.5 7.5 0 1 1 .5 3" />
+                        <path d="M4.5 4.5V12H12" />
+                      </svg>
+                      Geçen hafta · {prevLabel}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prevExercise?.sets.map((s, i) => (
+                        <span
+                          key={i}
+                          className="flex items-center gap-1.5 rounded-lg bg-zinc-800/60 px-2 py-1 text-[11px] font-semibold tabular-nums text-zinc-400 ring-1 ring-zinc-700/50"
+                        >
+                          <span className="text-[10px] font-bold text-zinc-600">
+                            S{i + 1}
+                          </span>
+                          <span>{fmtSet(s)}</span>
+                          {String(s?.rest ?? "").trim() && (
+                            <span className="text-[10px] text-zinc-600">
+                              · {String(s.rest).trim()} sn
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {attempted && emptyIndexes.length > 0 && (
