@@ -172,7 +172,7 @@ const TOUR_STEPS = [
     id: "card",
     selector: "[data-tour='exercise-card']",
     title: "Setlerini Doldur",
-    body: "Her set için ağırlık (kg), tekrar (tkr) ve dinlenme süresini (sn) gir. Yetmezse '+ Set Ekle' ile yeni satır ekleyebilirsin.",
+    body: "Her set için ağırlık (kg) ve tekrar (tkr) gir. Dinlenme süresini (sn) ise set aralarına yaz; son sette süre istenmez. Yetmezse '+ Set Ekle' ile yeni satır ekleyebilirsin.",
   },
   {
     id: "history",
@@ -452,7 +452,7 @@ function App() {
       sets: [
         { weight: "20", reps: 12, completed: false, rest: "90" },
         { weight: "20", reps: 10, completed: false, rest: "120" },
-        { weight: "20", reps: 8, completed: false, rest: "120" },
+        { weight: "20", reps: 8, completed: false, rest: "" },
       ],
     };
     setData((prev) => ({
@@ -718,14 +718,16 @@ function ExerciseCard({
   }, [forceExpand]);
 
   const nameMissing = exercise.name.trim() === "";
+  const lastSetIndex = exercise.sets.length - 1;
   const emptyIndexes = exercise.sets
-    .map((s, i) =>
-      s.weight.trim() === "" ||
-      !(Number(s.reps) > 0) ||
-      String(s.rest ?? "").trim() === ""
+    .map((s, i) => {
+      // Son setten sonra dinlenme yok; süre yalnızca set araları için gerekli.
+      const restMissing =
+        i !== lastSetIndex && String(s.rest ?? "").trim() === "";
+      return s.weight.trim() === "" || !(Number(s.reps) > 0) || restMissing
         ? i
-        : -1
-    )
+        : -1;
+    })
     .filter((i) => i !== -1);
   const canSave = !nameMissing && emptyIndexes.length === 0;
   const atMaxSets = exercise.sets.length >= MAX_SETS;
@@ -875,11 +877,11 @@ function ExerciseCard({
               {exercise.sets.map((set, i) => {
                 const weightMissing = attempted && set.weight.trim() === "";
                 const repsMissing = attempted && !(Number(set.reps) > 0);
+                const last = i === exercise.sets.length - 1;
                 const restMissing =
-                  attempted && String(set.rest ?? "").trim() === "";
+                  attempted && !last && String(set.rest ?? "").trim() === "";
                 const err =
                   "border-red-400/60 focus:border-red-400 focus:ring-red-400/30";
-                const last = i === exercise.sets.length - 1;
                 return (
                   <div
                     key={i}
@@ -937,29 +939,40 @@ function ExerciseCard({
                       <span className={unitCls}>tkr</span>
                     </label>
 
-                    <label className="relative block">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        enterKeyHint={last ? "done" : "next"}
-                        placeholder="60"
-                        value={set.rest || ""}
-                        onChange={(e) =>
-                          onUpdateSetRest(exercise.id, i, e.target.value)
-                        }
-                        aria-label={`Set ${i + 1} dinlenme saniye`}
-                        aria-invalid={restMissing}
-                        onFocus={() => setFocusedField("rest")}
-                        onBlur={() => setFocusedField((f) => (f === "rest" ? null : f))}
-                        style={{ paddingLeft: "1rem", paddingRight: "1.75rem" }}
-                        className={`${inputBase} ${
-                          restMissing
-                            ? err
-                            : "border-amber-400/20 focus:border-amber-400/60 focus:ring-amber-400/40"
-                        }`}
-                      />
-                      <span className={unitCls}>sn</span>
-                    </label>
+                    {last ? (
+                      <span
+                        aria-hidden="true"
+                        className="flex h-10 items-center justify-center text-sm font-semibold text-zinc-600"
+                      >
+                        —
+                      </span>
+                    ) : (
+                      <label className="relative block">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          enterKeyHint="next"
+                          placeholder="60"
+                          value={set.rest || ""}
+                          onChange={(e) =>
+                            onUpdateSetRest(exercise.id, i, e.target.value)
+                          }
+                          aria-label={`Set ${i + 1} dinlenme saniye`}
+                          aria-invalid={restMissing}
+                          onFocus={() => setFocusedField("rest")}
+                          onBlur={() =>
+                            setFocusedField((f) => (f === "rest" ? null : f))
+                          }
+                          style={{ paddingLeft: "1rem", paddingRight: "1.75rem" }}
+                          className={`${inputBase} ${
+                            restMissing
+                              ? err
+                              : "border-amber-400/20 focus:border-amber-400/60 focus:ring-amber-400/40"
+                          }`}
+                        />
+                        <span className={unitCls}>sn</span>
+                      </label>
+                    )}
                   </div>
                 );
               })}
@@ -1021,8 +1034,8 @@ function ExerciseCard({
             {attempted && emptyIndexes.length > 0 && (
               <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-amber-300/90">
                 <CircleAlert size={13} strokeWidth={2} className="shrink-0" />
-                Boş alanlar var — tüm setlerde ağırlık, tekrar ve dinlenme
-                süresini doldur.
+                Boş alanlar var — her sette ağırlık ve tekrar, set aralarında
+                dinlenme süresini doldur.
               </p>
             )}
 
