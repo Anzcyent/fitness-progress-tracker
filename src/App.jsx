@@ -789,6 +789,7 @@ function ExerciseCard({
             autoFocus={editingName}
             value={exercise.name}
             onChange={(e) => onUpdateName(exercise.id, e.target.value)}
+            onFocus={() => setEditingName(true)}
             onBlur={commitName}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitName();
