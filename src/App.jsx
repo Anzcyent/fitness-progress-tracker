@@ -113,6 +113,7 @@ const EMOJI_RULES = [
       "sirt", "lat ", "lats", "row", "kurek", "cekis",
       "pulldown", "pull down", "pull-up", "pullup", "pull up", "chin-up",
       "chin up", "chinup", "barfiks", "deadlift", "hyperextension", "ters mekik",
+      "back extension", "back ext", "lower back",
       "face pull", "t-bar", "t bar", "seated row", "cable row",
     ],
   },
